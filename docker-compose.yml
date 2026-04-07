@@ -1,55 +1,9 @@
-version: "3.9"
-
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: youth_policy_db
+  backend:
+    build: ./backend  # 👈 핵심 1: 백엔드 폴더(./backend)에 있는 Dockerfile을 사용해 빌드합니다.
+    container_name: youth_policy_backend
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: youth_policy
-      POSTGRES_USER: policy_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
-      PGDATA: /var/lib/postgresql/data/pgdata
-      TZ: Asia/Seoul
     ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
-      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U policy_admin -d youth_policy"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - policy_net
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: youth_policy_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@youth-policy.dev}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin1234}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - policy_net
-
-volumes:
-  pgdata:
-    driver: local
-  pgadmin_data:
-    driver: local
-
-networks:
-  policy_net:
-    driver: bridge
+      - "8000:8000"
+    env_file:
+      - ./docker/.env  # 👈 핵심 2: docker 폴더 안에 있는 .env 파일을 환경 변수로 사용합니다.
