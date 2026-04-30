@@ -3,7 +3,33 @@ import asyncio
 import json
 from dotenv import load_dotenv
 load_dotenv()
+EXCLUDE_KEYWORDS = [
+    # 참여형 프로그램
+    "인턴", "봉사", "캠프", "페스티벌", "공모전", "경진대회",
+    "해외", "교류", "기자단", "서포터즈", "홍보대사",
+    "아카데미", "스쿨", "강좌", "교육과정",
+    "연수", "훈련", "양성", "육성", "인재",
+    "R&D", "연구", "실험",
 
+    # 지역 한정 (서울 외)
+    "경남", "경북", "강원", "전남", "전북", "충남", "충북",
+    "부산", "대구", "인천", "광주", "대전", "울산",
+    "세종", "제주", "새만금", "광양", "의성",
+
+    # 대상 부적합
+    "재직자", "귀농", "귀촌", "군인", "병사",
+    "사관학교", "외국인", "어르신", "노년", "중장년",
+    "초등", "중학", "고등", "대학원", "박사",
+
+    # 기타
+    "공간운영", "센터운영", "행사", "대회",
+]
+
+def _is_relevant(name: str) -> bool:
+    return not any(kw in name for kw in EXCLUDE_KEYWORDS)
+
+def _is_relevant(name: str) -> bool:
+    return not any(kw in name for kw in EXCLUDE_KEYWORDS)
 from etl.extract.api_extractor import extract_policies_as_list, RawApiPolicy
 from etl.extract.llm_extractor import crawl_bokjiro, RawCrawledPolicy
 from etl.transform.llm_normalizer import normalize_batch
