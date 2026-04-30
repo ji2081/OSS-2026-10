@@ -28,8 +28,7 @@ EXCLUDE_KEYWORDS = [
 def _is_relevant(name: str) -> bool:
     return not any(kw in name for kw in EXCLUDE_KEYWORDS)
 
-def _is_relevant(name: str) -> bool:
-    return not any(kw in name for kw in EXCLUDE_KEYWORDS)
+
 from etl.extract.api_extractor import extract_policies_as_list, RawApiPolicy
 from etl.extract.llm_extractor import crawl_bokjiro, RawCrawledPolicy
 from etl.transform.llm_normalizer import normalize_batch
