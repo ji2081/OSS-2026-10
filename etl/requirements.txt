@@ -1,0 +1,6 @@
+httpx
+pydantic[email]
+sqlalchemy[asyncio]
+asyncpg
+python-dotenv
+openai
