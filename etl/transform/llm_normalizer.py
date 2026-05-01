@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 from openai import AsyncOpenAI
@@ -54,6 +55,10 @@ SYSTEM_PROMPT = """
 - confidence: 명확한 출처 + 완전한 데이터 = 0.9~1.0, 추정 포함 = 0.6~0.8, 불명확 = 0.5 미만
 - 서울 또는 전국 대상 정책만 처리하세요. 다른 지역 한정 정책은 confidence를 0.0으로 설정하세요.
 - 재직자 전용 등 미취업 청년 대상이 아닌 정책은 confidence를 0.0으로 설정하세요.
+- target_unemployed_only: 재직자 지원 불가, 미취업 청년 전용인 경우 true. 불명확하면 false.
+- 나이 제한이 없는 경우 age_min, age_max는 null로 처리하세요. 절대 99999 같은 임의 값을 넣지 마세요.
+- 소득 제한이 없는 경우 income_standard는 null로 처리하세요.
+- benefit_duration_months는 실제 수혜 기간(개월)만 입력하세요. 불명확하면 null로 처리하세요.
 - benefit_type 선택 기준:
   - subsidy: 현금 지원금, 수당
   - loan: 대출
@@ -64,10 +69,6 @@ SYSTEM_PROMPT = """
   - cashback: 교통 환급 등 캐시백
   - pass: 정기권 (교통 패스 등)
   - other: 위에 해당 없는 경우
-  - target_unemployed_only: 재직자 지원 불가, 미취업 청년 전용인 경우 true. 불명확하면 false.
-  - 나이 제한이 없는 경우 age_min, age_max는 null로 처리하세요. 절대 99999 같은 임의 값을 넣지 마세요.
-  - 소득 제한이 없는 경우 income_standard는 null로 처리하세요.
-  - benefit_duration_months는 실제 수혜 기간(개월)만 입력하세요. 불명확하면 null로 처리하세요.
 """.strip()
 
 
@@ -104,7 +105,7 @@ async def normalize_policy(
     source_url: str,
     policy_name_hint: str = "",
     retries: int = 2,
-) -> PolicySchema | None:
+) -> PolicySchema | None | str:
     known_exclusives = _get_known_exclusives_for(policy_name_hint)
     text_limits = [4000, 2000, 1000]
 
@@ -138,10 +139,6 @@ async def normalize_policy(
             return None
 
         except Exception as e:
-            print(f"[LLM ERROR] ({policy_name_hint}): {e}")
-            return None
-        
-        except Exception as e:
             err_str = str(e)
             if "402" in err_str or "insufficient_quota" in err_str or "크레딧" in err_str:
                 print(f"[CREDIT EXHAUSTED] ({policy_name_hint})")
@@ -156,7 +153,15 @@ async def normalize_batch(
     raw_items: list[tuple[str, str, str]],
     api_key: str,
     concurrency: int = 2,
+    checkpoint_path: str = "etl_checkpoint.json",
 ) -> tuple[list[PolicySchema | None], bool]:
+
+    checkpoint: dict[str, dict] = {}
+    if os.path.exists(checkpoint_path):
+        with open(checkpoint_path, 'r', encoding='utf-8') as f:
+            checkpoint = json.load(f)
+        print(f"  → 체크포인트 로드: {len(checkpoint)}개 이미 처리됨")
+
     client = AsyncOpenAI(
         api_key=api_key,
         base_url="https://factchat-cloud.mindlogic.ai/v1/gateway",
@@ -169,14 +174,30 @@ async def normalize_batch(
         nonlocal credit_exhausted
         if credit_exhausted:
             return
+
+        name = item[2]
+
+        if name in checkpoint:
+            try:
+                results[index] = PolicySchema(**checkpoint[name])
+            except Exception:
+                pass
+            return
+
         async with semaphore:
             if credit_exhausted:
                 return
-            result = await normalize_policy(client, item[0], item[1], item[2])
+            result = await normalize_policy(client, item[0], item[1], name)
             if result == "CREDIT_EXHAUSTED":
                 credit_exhausted = True
                 return
             results[index] = result
+
+            if result is not None and not isinstance(result, Exception):
+                checkpoint[name] = result.model_dump(mode='json', serialize_as_any=True)
+                with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                    json.dump(checkpoint, f, ensure_ascii=False, default=str)
+
             await asyncio.sleep(0.5)
 
     tasks = [_normalize_with_sem(i, item) for i, item in enumerate(raw_items)]

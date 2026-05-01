@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import json
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -17,23 +18,20 @@ DB_DSN: str = os.environ.get(
     "postgresql://policy_admin:password@localhost:5432/youth_policy",
 )
 CONFIDENCE_THRESHOLD = 0.5
+CACHE_PATH = "etl_cache.json"
 
 EXCLUDE_KEYWORDS = [
-    # 참여형 프로그램
     "인턴", "봉사", "캠프", "페스티벌", "공모전", "경진대회",
     "해외", "교류", "기자단", "서포터즈", "홍보대사",
     "아카데미", "스쿨", "강좌", "교육과정",
     "연수", "훈련", "양성", "육성", "인재",
     "R&D", "연구", "실험",
-    # 지역 한정 (서울 외)
     "경남", "경북", "강원", "전남", "전북", "충남", "충북",
     "부산", "대구", "인천", "광주", "대전", "울산",
     "세종", "제주", "새만금", "광양", "의성",
-    # 대상 부적합
     "재직자", "귀농", "귀촌", "군인", "병사",
     "사관학교", "외국인", "어르신", "노년", "중장년",
     "초등", "중학", "고등", "대학원", "박사",
-    # 기타
     "공간운영", "센터운영", "행사", "대회",
 ]
 
@@ -63,58 +61,93 @@ def _crawled_to_raw(items: list[RawCrawledPolicy]) -> list[tuple[str, str, str]]
     return [(it.raw_text, it.url, _normalize_title(it.name)) for it in items]
 
 
-async def run_pipeline() -> None:
+def _save_cache(schemas: list) -> None:
+    cache_data = []
+    for s in schemas:
+        if s is not None and not isinstance(s, Exception):
+            cache_data.append(s.model_dump(mode='json'))
+    with open(CACHE_PATH, 'w', encoding='utf-8') as f:
+        json.dump(cache_data, f, ensure_ascii=False, default=str)
+    print(f"  → 정형화 결과 저장: {CACHE_PATH} ({len(cache_data)}개)")
+
+
+def _load_cache() -> list[PolicySchema] | None:
+    if not os.path.exists(CACHE_PATH):
+        return None
+    with open(CACHE_PATH, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    schemas = []
+    for item in data:
+        try:
+            schemas.append(PolicySchema(**item))
+        except Exception:
+            pass
+    print(f"  → 캐시에서 로드: {len(schemas)}개")
+    return schemas
+
+
+async def run_pipeline(use_cache: bool = False) -> None:
     print("=" * 60)
     print("청년 지원금 ETL 파이프라인 시작")
     print("=" * 60)
 
-    print("\n[1/3] 데이터 추출 중...")
-    api_policies: list[RawApiPolicy] = []
-    try:
-        api_policies = await extract_policies_as_list()
-        print(f"  ✓ 온통청년 API: {len(api_policies)}개")
-    except Exception as e:
-        print(f"  ✗ 온통청년 API 실패: {e}")
+    schemas: list[PolicySchema | None] = []
 
-    crawled_policies: list[RawCrawledPolicy] = []
-    try:
-        crawled_policies = await crawl_bokjiro()
-        print(f"  ✓ 복지로 크롤링: {len(crawled_policies)}개")
-    except Exception as e:
-        print(f"  ✗ 복지로 크롤링 실패: {e}")
+    if use_cache:
+        print("\n[캐시 모드] LLM 생략, 캐시 파일에서 로드합니다.")
+        schemas = _load_cache()
+        if not schemas:
+            print("캐시 파일이 없습니다. 일반 모드로 실행하세요.")
+            return
+    else:
+        print("\n[1/3] 데이터 추출 중...")
+        api_policies: list[RawApiPolicy] = []
+        try:
+            api_policies = await extract_policies_as_list()
+            print(f"  ✓ 온통청년 API: {len(api_policies)}개")
+        except Exception as e:
+            print(f"  ✗ 온통청년 API 실패: {e}")
 
-    raw_items = _api_policies_to_raw(api_policies) + _crawled_to_raw(crawled_policies)
-    before = len(raw_items)
+        crawled_policies: list[RawCrawledPolicy] = []
+        try:
+            crawled_policies = await crawl_bokjiro()
+            print(f"  ✓ 복지로 크롤링: {len(crawled_policies)}개")
+        except Exception as e:
+            print(f"  ✗ 복지로 크롤링 실패: {e}")
 
-    excluded_names = [item[2] for item in raw_items if not _is_relevant(item[2])]
-    raw_items = [item for item in raw_items if _is_relevant(item[2])]
+        raw_items = _api_policies_to_raw(api_policies) + _crawled_to_raw(crawled_policies)
+        before = len(raw_items)
+        excluded_names = [item[2] for item in raw_items if not _is_relevant(item[2])]
+        raw_items = [item for item in raw_items if _is_relevant(item[2])]
 
-    print(f"  → 총 추출: {before}개")
-    print(f"  → 키워드 필터링: {before}개 → {len(raw_items)}개 ({len(excluded_names)}개 제외)")
-    print("  → 제외된 정책 샘플 (상위 10개):")
-    for name in excluded_names[:10]:
-        print(f"     - {name}")
+        print(f"  → 총 추출: {before}개")
+        print(f"  → 키워드 필터링: {before}개 → {len(raw_items)}개 ({len(excluded_names)}개 제외)")
+        print("  → 제외된 정책 샘플 (상위 10개):")
+        for name in excluded_names[:10]:
+            print(f"     - {name}")
 
-    if len(raw_items) == 0:
-        print("추출된 데이터가 없습니다. 파이프라인 종료.")
-        return
+        if len(raw_items) == 0:
+            print("추출된 데이터가 없습니다. 파이프라인 종료.")
+            return
 
-    print("\n[2/3] LLM 정형화 중...")
-    schemas, credit_exhausted = await normalize_batch(
-        raw_items,
-        api_key=LLM_API_KEY,
-        concurrency=2,
-    )
+        print("\n[2/3] LLM 정형화 중...")
+        schemas, credit_exhausted = await normalize_batch(
+            raw_items,
+            api_key=LLM_API_KEY,
+            concurrency=2,
+        )
 
-    valid = [s for s in schemas if s is not None and not isinstance(s, Exception)]
-    low_confidence = [s for s in valid if s.confidence < CONFIDENCE_THRESHOLD]
+        valid = [s for s in schemas if s is not None and not isinstance(s, Exception)]
+        low_confidence = [s for s in valid if s.confidence < CONFIDENCE_THRESHOLD]
 
-    print(f"  ✓ 정형화 성공: {len(valid)}개")
-    print(f"  ⚠ confidence < {CONFIDENCE_THRESHOLD}: {len(low_confidence)}개 (삽입 제외)")
-    print(f"  ✗ 정형화 실패: {len(raw_items) - len(valid)}개")
+        print(f"  ✓ 정형화 성공: {len(valid)}개")
+        print(f"  ⚠ confidence < {CONFIDENCE_THRESHOLD}: {len(low_confidence)}개 (삽입 제외)")
+        print(f"  ✗ 정형화 실패: {len(raw_items) - len(valid)}개")
 
-    if credit_exhausted:
-        print("  ⚠ 크레딧 부족으로 중단됨 — 성공한 항목만 DB에 삽입합니다.")
+        if credit_exhausted:
+            print("  ⚠ 크레딧 부족으로 중단됨 — 성공한 항목만 DB에 삽입합니다.")
+
+        _save_cache(schemas)
 
     print("\n[3/3] DB 삽입 중...")
     result = await insert_batch(DB_DSN, schemas, source="etl_run")
@@ -135,4 +168,6 @@ async def run_pipeline() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run_pipeline())
+    import sys
+    use_cache = "--cache" in sys.argv
+    asyncio.run(run_pipeline(use_cache=use_cache))

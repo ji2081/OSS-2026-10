@@ -104,7 +104,7 @@ async def insert_batch(
     result = InsertResult()
     total_extracted = len(schemas)
 
-    conn = await asyncpg.connect(dsn)
+    conn = await asyncpg.connect(dsn, ssl='require')
     try:
         for schema in schemas:
             if schema is None or isinstance(schema, Exception):
