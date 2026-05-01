@@ -143,6 +143,10 @@ async def normalize_policy(
             if "402" in err_str or "insufficient_quota" in err_str or "크레딧" in err_str:
                 print(f"[CREDIT EXHAUSTED] ({policy_name_hint})")
                 return "CREDIT_EXHAUSTED"
+            if "429" in err_str:
+                print(f"[RATE LIMIT] ({policy_name_hint}) 5초 대기 후 재시도...")
+                await asyncio.sleep(5)
+                continue
             print(f"[LLM ERROR] ({policy_name_hint}): {e}")
             return None
 
@@ -152,7 +156,7 @@ async def normalize_policy(
 async def normalize_batch(
     raw_items: list[tuple[str, str, str]],
     api_key: str,
-    concurrency: int = 2,
+    concurrency: int = 1,
     checkpoint_path: str = "etl_checkpoint.json",
 ) -> tuple[list[PolicySchema | None], bool]:
 
@@ -198,7 +202,7 @@ async def normalize_batch(
                 with open(checkpoint_path, 'w', encoding='utf-8') as f:
                     json.dump(checkpoint, f, ensure_ascii=False, default=str)
 
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(2.0)
 
     tasks = [_normalize_with_sem(i, item) for i, item in enumerate(raw_items)]
     await asyncio.gather(*tasks, return_exceptions=True)
