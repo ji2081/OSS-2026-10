@@ -1,33 +1,9 @@
 import os
+import re
 import asyncio
 import json
 from dotenv import load_dotenv
 load_dotenv()
-EXCLUDE_KEYWORDS = [
-    # 참여형 프로그램
-    "인턴", "봉사", "캠프", "페스티벌", "공모전", "경진대회",
-    "해외", "교류", "기자단", "서포터즈", "홍보대사",
-    "아카데미", "스쿨", "강좌", "교육과정",
-    "연수", "훈련", "양성", "육성", "인재",
-    "R&D", "연구", "실험",
-
-    # 지역 한정 (서울 외)
-    "경남", "경북", "강원", "전남", "전북", "충남", "충북",
-    "부산", "대구", "인천", "광주", "대전", "울산",
-    "세종", "제주", "새만금", "광양", "의성",
-
-    # 대상 부적합
-    "재직자", "귀농", "귀촌", "군인", "병사",
-    "사관학교", "외국인", "어르신", "노년", "중장년",
-    "초등", "중학", "고등", "대학원", "박사",
-
-    # 기타
-    "공간운영", "센터운영", "행사", "대회",
-]
-
-def _is_relevant(name: str) -> bool:
-    return not any(kw in name for kw in EXCLUDE_KEYWORDS)
-
 
 from etl.extract.api_extractor import extract_policies_as_list, RawApiPolicy
 from etl.extract.llm_extractor import crawl_bokjiro, RawCrawledPolicy
@@ -42,6 +18,33 @@ DB_DSN: str = os.environ.get(
 )
 CONFIDENCE_THRESHOLD = 0.5
 
+EXCLUDE_KEYWORDS = [
+    # 참여형 프로그램
+    "인턴", "봉사", "캠프", "페스티벌", "공모전", "경진대회",
+    "해외", "교류", "기자단", "서포터즈", "홍보대사",
+    "아카데미", "스쿨", "강좌", "교육과정",
+    "연수", "훈련", "양성", "육성", "인재",
+    "R&D", "연구", "실험",
+    # 지역 한정 (서울 외)
+    "경남", "경북", "강원", "전남", "전북", "충남", "충북",
+    "부산", "대구", "인천", "광주", "대전", "울산",
+    "세종", "제주", "새만금", "광양", "의성",
+    # 대상 부적합
+    "재직자", "귀농", "귀촌", "군인", "병사",
+    "사관학교", "외국인", "어르신", "노년", "중장년",
+    "초등", "중학", "고등", "대학원", "박사",
+    # 기타
+    "공간운영", "센터운영", "행사", "대회",
+]
+
+
+def _is_relevant(name: str) -> bool:
+    return not any(kw in name for kw in EXCLUDE_KEYWORDS)
+
+
+def _normalize_title(name: str) -> str:
+    return re.sub(r'\s+', ' ', name).strip()
+
 
 def _api_policies_to_raw(items: list[RawApiPolicy]) -> list[tuple[str, str, str]]:
     return [
@@ -50,14 +53,14 @@ def _api_policies_to_raw(items: list[RawApiPolicy]) -> list[tuple[str, str, str]
             f"신청기간: {p.apply_period}\n개요: {p.overview}\n지원내용: {p.support_content}\n"
             f"대상나이: {p.age_min}~{p.age_max}세",
             p.source_url,
-            p.name,
+            _normalize_title(p.name),
         )
         for p in items
     ]
 
 
 def _crawled_to_raw(items: list[RawCrawledPolicy]) -> list[tuple[str, str, str]]:
-    return [(it.raw_text, it.url, it.name) for it in items]
+    return [(it.raw_text, it.url, _normalize_title(it.name)) for it in items]
 
 
 async def run_pipeline() -> None:
@@ -81,10 +84,18 @@ async def run_pipeline() -> None:
         print(f"  ✗ 복지로 크롤링 실패: {e}")
 
     raw_items = _api_policies_to_raw(api_policies) + _crawled_to_raw(crawled_policies)
-    total_extracted = len(raw_items)
-    print(f"  → 총 추출: {total_extracted}개")
+    before = len(raw_items)
 
-    if total_extracted == 0:
+    excluded_names = [item[2] for item in raw_items if not _is_relevant(item[2])]
+    raw_items = [item for item in raw_items if _is_relevant(item[2])]
+
+    print(f"  → 총 추출: {before}개")
+    print(f"  → 키워드 필터링: {before}개 → {len(raw_items)}개 ({len(excluded_names)}개 제외)")
+    print("  → 제외된 정책 샘플 (상위 10개):")
+    for name in excluded_names[:10]:
+        print(f"     - {name}")
+
+    if len(raw_items) == 0:
         print("추출된 데이터가 없습니다. 파이프라인 종료.")
         return
 
@@ -100,7 +111,7 @@ async def run_pipeline() -> None:
 
     print(f"  ✓ 정형화 성공: {len(valid)}개")
     print(f"  ⚠ confidence < {CONFIDENCE_THRESHOLD}: {len(low_confidence)}개 (삽입 제외)")
-    print(f"  ✗ 정형화 실패: {total_extracted - len(valid)}개")
+    print(f"  ✗ 정형화 실패: {len(raw_items) - len(valid)}개")
 
     if credit_exhausted:
         print("  ⚠ 크레딧 부족으로 중단됨 — 성공한 항목만 DB에 삽입합니다.")

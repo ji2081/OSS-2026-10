@@ -46,7 +46,7 @@ class PolicySchema(BaseModel):
     is_active:               bool            = True
     target_unemployed_only:  bool            = False
     exclusive_with:          list[str]       = Field(default_factory=list)
-    source_url:              Optional[str]   = Field(default=None, max_length=500)
+    source_url:              Optional[str]   = Field(default=None, max_length=1000)
     confidence:              float           = Field(default=1.0, ge=0.0, le=1.0)
     raw_data:                Optional[str]   = None
 
