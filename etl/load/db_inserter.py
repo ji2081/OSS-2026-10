@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from dataclasses import dataclass, field
 
 import asyncpg
@@ -21,7 +21,7 @@ INSERT INTO policies (
     super_region, sub_region,
     age_min, age_max, income_standard, income_limit,
     total_benefit, benefit_duration_months, benefit_description,
-    apply_start, apply_end, is_active,
+    apply_start, apply_end, is_active, target_unemployed_only,
     exclusive_with, source_url, confidence, raw_data,
     updated_at
 )
@@ -30,9 +30,9 @@ VALUES (
     $5, $6,
     $7, $8, $9, $10,
     $11, $12, $13,
-    $14, $15, $16,
-    $17::jsonb, $18, $19, $20, $21
-    NOW()
+    $14, $15, $16, $17,
+    $18::jsonb, $19, $20, $21,
+    $22
 )
 ON CONFLICT (title) DO UPDATE SET
     category                = EXCLUDED.category,
@@ -50,12 +50,12 @@ ON CONFLICT (title) DO UPDATE SET
     apply_start             = EXCLUDED.apply_start,
     apply_end               = EXCLUDED.apply_end,
     is_active               = EXCLUDED.is_active,
+    target_unemployed_only  = EXCLUDED.target_unemployed_only,
     exclusive_with          = EXCLUDED.exclusive_with,
     source_url              = EXCLUDED.source_url,
     confidence              = EXCLUDED.confidence,
     raw_data                = EXCLUDED.raw_data,
-    updated_at              = NOW()
-    target_unemployed_only = EXCLUDED.target_unemployed_only,
+    updated_at              = EXCLUDED.updated_at
 RETURNING id
 """
 
@@ -87,11 +87,12 @@ async def insert_policy(conn: asyncpg.Connection, schema: PolicySchema) -> bool:
         schema.apply_start,
         schema.apply_end,
         schema.is_active,
+        schema.target_unemployed_only,
         json.dumps(schema.exclusive_with, ensure_ascii=False),
         schema.source_url,
         schema.confidence,
         schema.raw_data,
-        schema.target_unemployed_only,
+        datetime.utcnow(),
     )
     return row is not None
 
@@ -104,7 +105,7 @@ async def insert_batch(
     result = InsertResult()
     total_extracted = len(schemas)
 
-    conn = await asyncpg.connect(dsn)
+    conn = await asyncpg.connect(dsn, ssl='require')
     try:
         for schema in schemas:
             if schema is None or isinstance(schema, Exception):
@@ -125,7 +126,7 @@ async def insert_batch(
 
         await conn.execute(
             INSERT_LOG_SQL,
-            datetime.now(timezone.utc),
+            datetime.utcnow(),
             source,
             total_extracted,
             result.success,
