@@ -19,3 +19,7 @@ frontend/dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# ETL Temp Files
+etl_cache.json
+etl_checkpoint.json
