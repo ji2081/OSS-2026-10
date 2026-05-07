@@ -3,70 +3,84 @@
 import { useState, useRef, useEffect } from "react";
 import "./RoadmapPage.css";
 
-// ── 카테고리 ──────────────────────────────────────────────────────────────────
+// ── 카테고리 (subsidies.js의 CATEGORIES + asset 포함) ─────────────────────────
 const ALL_CATEGORIES = {
-  realestate: { label: "주거", color: "#34C759" },
-  employment: { label: "취업·교육", color: "#FF9F0A" },
-  transport: { label: "교통", color: "#AF52DE" },
-  culture: { label: "문화", color: "#FF375F" },
+  living: { label: "생활지원", color: "#E53935" },
+  realestate: { label: "주거", color: "#43A047" },
+  employment: { label: "취업·교육", color: "#FB8C00" },
+  transport: { label: "교통", color: "#8E24AA" },
   asset: { label: "자산형성", color: "#007AFF" },
 };
 
 // ── 신청 기간 데이터 ──────────────────────────────────────────────────────────
-// applyStart ~ applyEnd : 이 범위 안에서 신청 시작월을 선택할 수 있음
-// duration              : 정책이 지속되는 개월 수 (선택한 시작월부터 계산)
+// applyStart ~ applyEnd : 신청 시작월을 선택할 수 있는 범위
+// duration              : 정책이 지속되는 개월 수
 // isAlwaysOpen          : true면 드롭다운 대신 "상시 신청" 표시
 //
 // [DB 연동] 이 객체를 API 응답으로 교체하면 됩니다.
 const APP_WINDOWS = {
-  "monthly-rent-support": {
-    applyStart: "2024-03",
-    applyEnd: "2025-02",
-    duration: 12,
-  },
-  "employment-support": {
-    applyStart: "2024-03",
-    applyEnd: "2024-08",
+  "youth-allowance": {
+    applyStart: "2025-07",
+    applyEnd: "2025-07",
     duration: 6,
   },
-  "tomorrow-savings": {
-    applyStart: "2024-09",
-    applyEnd: "2026-08",
+  "rent-support-national": {
+    applyStart: "2025-01",
+    applyEnd: "2025-12",
     duration: 24,
   },
+  "rent-support-seoul": {
+    applyStart: "2025-06",
+    applyEnd: "2025-06",
+    duration: 12,
+  },
+  "tomorrow-savings": {
+    applyStart: "2025-01",
+    applyEnd: "2025-12",
+    duration: 24,
+  },
+  "employment-support": {
+    applyStart: "2025-01",
+    applyEnd: "2025-06",
+    duration: 6,
+  },
+  "loan-interest": { applyStart: "2025-01", applyEnd: "2025-09", duration: 12 },
+  "exam-fee": { applyStart: "2025-01", applyEnd: "2025-12", duration: 1 },
   "transport-support": {
     applyStart: "2025-01",
     applyEnd: "2025-12",
     duration: 12,
   },
-  kpass: { applyStart: "2024-01", applyEnd: "2024-12", duration: 12 },
-  "hope-savings": { applyStart: "2024-06", applyEnd: "2026-05", duration: 24 },
-  "isa-benefit": {
-    applyStart: "2024-01",
-    applyEnd: "2026-12",
-    duration: 36,
+  kpass: { applyStart: "2025-01", applyEnd: "2025-12", duration: 12 },
+  "hope-savings": { applyStart: "2025-06", applyEnd: "2025-06", duration: 36 },
+  "nael-savings": { applyStart: "2025-05", applyEnd: "2025-05", duration: 36 },
+  doyak: {
+    applyStart: "2025-01",
+    applyEnd: "2025-12",
+    duration: 60,
     isAlwaysOpen: true,
   },
-  "housing-dream": {
-    applyStart: "2024-01",
+  "jeonse-loan": {
+    applyStart: "2025-01",
     applyEnd: "2025-12",
     duration: 24,
     isAlwaysOpen: true,
   },
-  "jeonse-loan": {
-    applyStart: "2024-03",
-    applyEnd: "2026-02",
-    duration: 24,
+  "deposit-interest": {
+    applyStart: "2025-01",
+    applyEnd: "2025-12",
+    duration: 84,
     isAlwaysOpen: true,
   },
 };
 
 // ── 단발성 정책 (막대 1개월) ──────────────────────────────────────────────────
-const ONE_TIME_IDS = new Set([]);
+const ONE_TIME_IDS = new Set(["exam-fee"]);
 
-// ── 인계(핸드오프) ────────────────────────────────────────────────────────────
+// ── 인계(핸드오프) 관계 ────────────────────────────────────────────────────────
 const HANDOFFS = [
   { from: "employment-support", to: "tomorrow-savings" },
+  { from: "rent-support-national", to: "rent-support-seoul" },
   { from: "kpass", to: "transport-support" },
 ];
 
@@ -75,16 +89,13 @@ function dateToAbs(dateStr) {
   const [y, m] = dateStr.split("-").map(Number);
   return y * 12 + (m - 1);
 }
-
 function absToYYYYMM(abs) {
   const y = Math.floor(abs / 12);
   const m = (abs % 12) + 1;
   return `${y}-${String(m).padStart(2, "0")}`;
 }
-
 function absToLabel(abs) {
-  const ym = absToYYYYMM(abs);
-  return ym.replace("-", ".");
+  return absToYYYYMM(abs).replace("-", ".");
 }
 
 // 신청 가능한 모든 월 목록 생성
@@ -106,7 +117,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   );
 
   const [visibleMonths, setVisibleMonths] = useState(24);
-  // selStart[id] = 선택된 시작월 문자열 (e.g. '2024-09'), 미설정이면 applyStart 사용
   const [selStart, setSelStart] = useState({});
   const [hoveredId, setHoveredId] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -137,7 +147,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
     );
   }
 
-  // ── 활성 시작월 가져오기 ────────────────────────────────────────────────────
+  // ── 활성 시작월 ────────────────────────────────────────────────────────────
   const getStartMonth = (item) => {
     const win = APP_WINDOWS[item.id];
     return selStart[item.id] ?? (win?.applyStart || item.startDate);
@@ -161,7 +171,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   );
   const monthWidth = chartWidth / visibleMonths;
 
-  // ── 분기 헤더 ────────────────────────────────────────────────────────────
+  // ── 분기 헤더 ─────────────────────────────────────────────────────────────
   const quarters = [];
   for (let offset = 0; offset < visibleMonths; ) {
     const abs = baseAbs + offset;
@@ -182,7 +192,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
 
     const startOff = startAbs - baseAbs;
     const endOff = endAbs - baseAbs;
-
     const leftClamp = Math.max(0, startOff);
     const rightClamp = Math.min(endOff, visibleMonths);
     const left = leftClamp * monthWidth;
@@ -305,8 +314,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                       : "별도 안내"}
                   </span>
                 </div>
-
-                {/* 신청 시작월 선택 드롭다운 */}
                 {options.length > 1 ? (
                   <select
                     className="month-select"
@@ -335,7 +342,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
 
         {/* 오른쪽: 타임라인 */}
         <div className="gantt-right" ref={chartRef}>
-          {/* 분기 헤더 */}
           <div className="gantt-th-right">
             {quarters.map((q, i) => (
               <div
@@ -351,7 +357,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
             ))}
           </div>
 
-          {/* 행 */}
           {selectedItems.map((item) => {
             const bar = getBarProps(item);
             const color = ALL_CATEGORIES[item.category]?.color || "#999";
@@ -472,7 +477,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                 </div>
                 <p className="rm-desc">{detailItem.description}</p>
 
-                {/* 현재 선택 기간 표시 */}
                 <div className="rm-period-display">
                   <span className="rm-period-label">선택된 기간</span>
                   <span className="rm-period-value">
@@ -480,7 +484,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                   </span>
                 </div>
 
-                {/* 신청 시작월 선택 */}
                 {options.length > 1 && (
                   <div className="rm-windows">
                     <span className="rm-windows-title">신청 시작월 선택</span>
