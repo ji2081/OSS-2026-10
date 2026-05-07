@@ -3,6 +3,7 @@ from typing import Optional, List
 from datetime import date
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory, PolicyType
+from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -151,3 +152,51 @@ def get_policy_detail(policy_id: int):
         )
     
     return policy
+
+
+@router.post("/optimize", response_model=OptimizeResponse)
+def optimize_policies(request: OptimizeRequest):
+    """
+    사용자 프로필 기반 최적 정책 추천 (MWIS 알고리즘)
+    
+    ※ 현재는 더미 데이터를 반환합니다. (프론트엔드 UI 테스트용)
+    
+    - profile: 사용자 프로필 정보
+    - min_confidence: 최소 신뢰도 필터
+    """
+    # TODO: 실제 MWIS 알고리즘 적용 및 DB 연동
+    # 현재는 프론트엔드 간트 차트 테스트를 위한 더미 응답
+    
+    print("=" * 60)
+    print("[POST /optimize] 요청 수신")
+    print(f"나이: {request.profile.age}")
+    print(f"소득: {request.profile.income}")
+    print(f"미취업 여부: {request.profile.is_unemployed}")
+    print(f"지역: {request.profile.super_region} / {request.profile.sub_region}")
+    print(f"최소 신뢰도: {request.min_confidence}")
+    print("=" * 60)
+    
+    # 더미 응답: 2개 정책이 시간순으로 연결되는 타임라인
+    dummy_response = OptimizeResponse(
+        total_benefit=13800000,
+        selected_policies=[
+            PolicyResponse(**DUMMY_POLICIES[0]),  # 청년내일저축계좌
+            PolicyResponse(**DUMMY_POLICIES[3])   # 청년 취업 성공패키지
+        ],
+        timeline=[
+            TimelineItem(
+                policy_id=1,
+                title="청년내일저축계좌",
+                start_date=date(2026, 5, 1),
+                end_date=date(2026, 10, 31)
+            ),
+            TimelineItem(
+                policy_id=4,
+                title="청년 취업 성공패키지",
+                start_date=date(2026, 11, 1),
+                end_date=date(2027, 4, 30)
+            )
+        ]
+    )
+    
+    return dummy_response

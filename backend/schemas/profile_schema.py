@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List
+from datetime import date
 
 
 class UserProfileRequest(BaseModel):
@@ -16,7 +17,7 @@ class UserProfileRequest(BaseModel):
             "example": {
                 "age": 25,
                 "income": 80.5,
-                "is_unemployed": False,
+                "is_unemployed": True,
                 "super_region": "서울특별시",
                 "sub_region": "강남구"
             }
@@ -35,7 +36,7 @@ class OptimizeRequest(BaseModel):
                 "profile": {
                     "age": 25,
                     "income": 80.5,
-                    "is_unemployed": False,
+                    "is_unemployed": Ture,
                     "super_region": "서울특별시",
                     "sub_region": "강남구"
                 },
@@ -43,3 +44,57 @@ class OptimizeRequest(BaseModel):
             }
         }
     )
+
+
+class TimelineItem(BaseModel):
+    """간트 차트 UI를 위한 타임라인 아이템"""
+    policy_id: int = Field(..., description="정책 고유 ID")
+    title: str = Field(..., description="정책명")
+    start_date: date = Field(..., description="수혜 시작일")
+    end_date: date = Field(..., description="수혜 종료일")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "policy_id": 1,
+                "title": "청년내일저축계좌",
+                "start_date": "2026-05-01",
+                "end_date": "2026-10-31"
+            }
+        }
+    )
+
+
+class OptimizeResponse(BaseModel):
+    """최적화 추천 API 응답"""
+    total_benefit: int = Field(..., description="선택된 정책들의 총 혜택 금액 (원)")
+    selected_policies: List["PolicyResponse"] = Field(..., description="선택된 정책 상세 리스트")
+    timeline: List[TimelineItem] = Field(..., description="수혜 타임라인 (간트 차트용)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_benefit": 13800000,
+                "selected_policies": [],
+                "timeline": [
+                    {
+                        "policy_id": 1,
+                        "title": "청년내일저축계좌",
+                        "start_date": "2026-05-01",
+                        "end_date": "2026-10-31"
+                    },
+                    {
+                        "policy_id": 4,
+                        "title": "청년 취업 성공패키지",
+                        "start_date": "2026-11-01",
+                        "end_date": "2027-04-30"
+                    }
+                ]
+            }
+        }
+    )
+
+
+# PolicyResponse 순환 참조 해결
+from schemas.policy_schema import PolicyResponse
+OptimizeResponse.model_rebuild()
