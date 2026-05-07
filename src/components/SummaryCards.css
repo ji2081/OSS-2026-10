@@ -1,0 +1,81 @@
+/* SummaryCards.css — 흑백 미니멀 */
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  background: #FFFFFF;
+  border-radius: 2px;
+  padding: 20px;
+  border: 1px solid #E0E0E0;
+  transition: border-color 0.15s;
+}
+
+.summary-card:hover {
+  border-color: #BBB;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  background: #F5F5F5 !important;
+  color: #111 !important;
+}
+
+.card-value {
+  margin-bottom: 4px;
+}
+
+.value-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -1px;
+}
+
+.value-unit {
+  font-size: 14px;
+  color: #999;
+  margin-left: 2px;
+  font-weight: 400;
+}
+
+.value-empty {
+  font-size: 28px;
+  font-weight: 300;
+  color: #DDD;
+}
+
+.card-desc {
+  font-size: 11px;
+  color: #BBB;
+}
+
+@media (max-width: 768px) {
+  .summary-cards { grid-template-columns: 1fr; }
+  .value-number { font-size: 24px; }
+}
