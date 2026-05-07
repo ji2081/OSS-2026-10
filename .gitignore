@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 보안 및 개인 설정
 .env
 .env.local
@@ -28,7 +27,12 @@ frontend/dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# ETL Temp Files
+etl_cache.json
+etl_checkpoint.json
+
+# NPM/Yarn Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
