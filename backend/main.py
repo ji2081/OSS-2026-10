@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from sqlalchemy import create_engine, text
+from routers.policy_router import router as policy_router
 import os
 
 app = FastAPI()
@@ -23,3 +24,5 @@ def test_db_connection():
 @app.get("/")
 def read_root():
     return {"message": "OSS-2026-10 백엔드 서버"}
+
+app.include_router(policy_router)
