@@ -128,7 +128,6 @@
 }
 
 /* ===== 서브페이지 (로드맵, 알짜배기) ===== */
-/* RoadmapPage / BenefitsPage를 감싸는 래퍼 */
 .subpage-wrap {
   flex: 1;
   overflow-y: auto;
@@ -185,9 +184,24 @@
   line-height: 1.8;
 }
 
-.subpage-wrap {
-  flex: 1;
-  overflow-y: auto;
-  max-height: calc(100vh - 52px);
-  background: #fafafa;
+@media (max-width: 768px) {
+  .dashboard-body {
+    flex-direction: column;
+  }
+  .dashboard-main {
+    max-height: none;
+    padding: 16px;
+  }
+  .dashboard-header {
+    padding: 0 12px;
+  }
+  .header-nav {
+    display: none;
+  }
+  .header-subtitle {
+    display: none;
+  }
+  .result-header h2 {
+    font-size: 16px;
+  }
 }

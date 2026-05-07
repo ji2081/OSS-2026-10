@@ -4,12 +4,13 @@ import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
 import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
+import logoImg from "../logo.png";
 import "./DashboardPage.css";
 import {
   MOCK_SUBSIDIES,
-  OPTIMAL_COMBINATION,
   DUPLICATE_GROUPS,
   CATEGORIES,
+  checkEligibility,
 } from "../data/subsidies";
 
 function DashboardPage({ userName, onLogout }) {
@@ -27,32 +28,29 @@ function DashboardPage({ userName, onLogout }) {
     isBasicLivelihood: false,
   };
 
-  const [currentPage, setCurrentPage] = useState("dashboard"); // ← 추가
+  const [currentPage, setCurrentPage] = useState("dashboard");
 
   const [conditionSets, setConditionSets] = useState([
     { id: 1, name: "조건 1", ...defaultCondition },
   ]);
   const [activeSetId, setActiveSetId] = useState(1);
+  const [nextId, setNextId] = useState(2);
   const activeCondition =
     conditionSets.find((s) => s.id === activeSetId) || conditionSets[0];
 
   const addConditionSet = () => {
     if (conditionSets.length >= 4) return;
-    const newId = Math.max(...conditionSets.map((s) => s.id)) + 1;
-    setConditionSets([
-      ...conditionSets,
-      { id: newId, name: `조건 ${newId}`, ...defaultCondition },
-    ]);
-    setActiveSetId(newId);
+    const newSet = { id: nextId, ...defaultCondition };
+    setConditionSets([...conditionSets, newSet]);
+    setActiveSetId(nextId);
+    setNextId(nextId + 1);
   };
-
   const removeConditionSet = (id) => {
     if (conditionSets.length <= 1) return;
     const filtered = conditionSets.filter((s) => s.id !== id);
     setConditionSets(filtered);
     if (activeSetId === id) setActiveSetId(filtered[0].id);
   };
-
   const updateCondition = (field, value) => {
     setConditionSets(
       conditionSets.map((s) =>
@@ -62,18 +60,25 @@ function DashboardPage({ userName, onLogout }) {
   };
 
   const [selectedSubsidies, setSelectedSubsidies] = useState({});
+  const [filteredSubsidies, setFilteredSubsidies] = useState([]);
   const [hasOptimized, setHasOptimized] = useState(false);
 
   const handleOptimize = () => {
+    const eligible = MOCK_SUBSIDIES.filter((s) =>
+      checkEligibility(s, activeCondition),
+    );
+    setFilteredSubsidies(eligible);
     const newSelections = {};
-    MOCK_SUBSIDIES.filter((s) => s.type === "grant").forEach((s) => {
-      if (s.duplicateGroup) {
-        const group = DUPLICATE_GROUPS.find((g) => g.id === s.duplicateGroup);
-        newSelections[s.id] = group ? group.recommendedId === s.id : false;
-      } else {
-        newSelections[s.id] = true;
-      }
-    });
+    eligible
+      .filter((s) => s.type === "grant")
+      .forEach((s) => {
+        if (s.duplicateGroup) {
+          const group = DUPLICATE_GROUPS.find((g) => g.id === s.duplicateGroup);
+          newSelections[s.id] = group ? group.recommendedId === s.id : false;
+        } else {
+          newSelections[s.id] = true;
+        }
+      });
     setSelectedSubsidies(newSelections);
     setHasOptimized(true);
   };
@@ -102,11 +107,10 @@ function DashboardPage({ userName, onLogout }) {
     }));
   };
 
-  const grants = MOCK_SUBSIDIES.filter((s) => s.type === "grant");
+  const grants = filteredSubsidies.filter((s) => s.type === "grant");
   const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
   const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
   const selectedCount = selectedGrants.length;
-
   const today = new Date();
   const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")} 기준`;
 
@@ -114,9 +118,9 @@ function DashboardPage({ userName, onLogout }) {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
-          <div className="header-logo">💰</div>
-          <h1>돈다바짜</h1>
-          <span className="header-subtitle">Youth Subsidy Optimizer</span>
+          <img src={logoImg} alt="다바짜" style={{ width: 24, height: 24 }} />
+          <h1>다바짜</h1>
+          <span className="header-subtitle">청년지원금 최적조합탐색기</span>
         </div>
         <nav className="header-nav">
           <a
@@ -161,7 +165,7 @@ function DashboardPage({ userName, onLogout }) {
         </div>
       </header>
 
-      {/* 대시보드 — 기존 코드 그대로 */}
+      {/* 대시보드 */}
       {currentPage === "dashboard" && (
         <div className="dashboard-body">
           <Sidebar
@@ -174,7 +178,6 @@ function DashboardPage({ userName, onLogout }) {
             onUpdateCondition={updateCondition}
             onOptimize={handleOptimize}
           />
-
           <main className="dashboard-main">
             <div className="result-header">
               <div>
@@ -194,20 +197,21 @@ function DashboardPage({ userName, onLogout }) {
                         : activeCondition.housingType === "dormitory"
                           ? "기숙사"
                           : "무주택"}
+                  {activeCondition.parentIncome > 0
+                    ? ` · 부모소득 ${activeCondition.parentIncome.toLocaleString()}만원`
+                    : ""}
                 </p>
               </div>
             </div>
-
             <SummaryCards
               totalAmount={totalAmount}
               selectedCount={selectedCount}
               totalCount={grants.length}
               hasOptimized={hasOptimized}
             />
-
             {hasOptimized ? (
               <SubsidyList
-                subsidies={MOCK_SUBSIDIES}
+                subsidies={filteredSubsidies}
                 selectedSubsidies={selectedSubsidies}
                 onToggle={toggleSubsidy}
                 categories={CATEGORIES}
@@ -219,7 +223,7 @@ function DashboardPage({ userName, onLogout }) {
                 <h3>조건을 설정하고 최적조합을 탐색해보세요</h3>
                 <p>
                   왼쪽 사이드바에서 조건을 입력한 후<br />
-                  "최적 조합 탐색" 버튼을 눌러주세요.
+                  최적 조합 탐색 버튼을 눌러주세요.
                 </p>
               </div>
             )}
@@ -231,7 +235,7 @@ function DashboardPage({ userName, onLogout }) {
       {currentPage === "roadmap" && (
         <div className="subpage-wrap">
           <RoadmapPage
-            subsidies={MOCK_SUBSIDIES}
+            subsidies={filteredSubsidies}
             selectedSubsidies={selectedSubsidies}
             hasOptimized={hasOptimized}
           />
