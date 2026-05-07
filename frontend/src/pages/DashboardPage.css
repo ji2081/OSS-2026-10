@@ -194,11 +194,28 @@
   }
   .dashboard-header {
     padding: 0 12px;
-  }
-  .header-nav {
-    display: none;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
   }
   .header-subtitle {
+    display: none;
+  }
+  .header-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 2px;
+  }
+  .nav-item {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+  .header-right {
+    gap: 8px;
+  }
+  .header-date {
     display: none;
   }
   .result-header h2 {

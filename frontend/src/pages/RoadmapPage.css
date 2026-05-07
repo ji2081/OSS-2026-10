@@ -521,3 +521,55 @@
 .rm-month-select:hover {
   border-color: #111;
 }
+
+@media (max-width: 768px) {
+  .roadmap-page {
+    padding: 16px;
+  }
+
+  .roadmap-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .roadmap-stat-cards {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .rstat-card {
+    min-width: 80px;
+    padding: 10px 14px;
+  }
+  .rstat-value {
+    font-size: 18px;
+  }
+
+  .roadmap-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gantt-wrap {
+    overflow-x: auto;
+  }
+  .gantt-left {
+    width: 140px;
+    min-width: 140px;
+  }
+  .gantt-item-name {
+    font-size: 11px;
+  }
+  .gantt-item-sub {
+    font-size: 9px;
+  }
+  .month-select {
+    min-width: 64px;
+    font-size: 10px;
+  }
+
+  .quarter-cell {
+    font-size: 9px;
+  }
+  .bar-label {
+    font-size: 9px;
+  }
+}
