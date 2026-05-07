@@ -1,0 +1,68 @@
+/* index.css — 글로벌 스타일 (흑백 미니멀) */
+
+:root {
+  /* 메인 색상 — 흑백 기조 */
+  --primary: #111111;
+  --primary-light: #F5F5F5;
+  --primary-dark: #000000;
+  
+  /* 카테고리 색상 (흑백 톤 유지하되 구분 가능하게) */
+  --cat-realestate: #2D2D2D;
+  --cat-asset: #555555;
+  --cat-employment: #888888;
+  --cat-transport: #AAAAAA;
+  --cat-culture: #444444;
+  
+  /* 중립 색상 */
+  --bg: #FAFAFA;
+  --white: #FFFFFF;
+  --border: #E0E0E0;
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  
+  /* 상태 색상 — 절제된 톤 */
+  --success: #333333;
+  --warning: #888888;
+  --danger: #CC0000;
+  --info: #666666;
+
+  /* 악센트 — 유일한 포인트 컬러 */
+  --accent: #CC0000;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, 'Helvetica Neue', 'Noto Sans KR', sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+input, select {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D0D0D0;
+  border-radius: 2px;
+}

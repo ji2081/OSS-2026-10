@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 # 보안 및 개인 설정
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .venv/
 
 # 백엔드 관련 
@@ -14,8 +18,17 @@ frontend/node_modules/
 frontend/build/
 frontend/dist/
 .eslintcache
+/node_modules
+/.pnp
+.pnp.js
+/coverage
+/build
 
 # 기타 로그 및 시스템 파일
 *.log
 .DS_Store
 Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
