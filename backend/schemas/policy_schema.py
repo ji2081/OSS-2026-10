@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from typing import Optional, List
 from datetime import date
+from uuid import UUID
 
 
 class PolicyCategory(str, Enum):
@@ -28,7 +29,7 @@ class PolicyType(str, Enum):
 
 
 class PolicyResponse(BaseModel):
-    id: int
+    id: UUID
     title: str
     category: PolicyCategory
     benefit_type: PolicyType

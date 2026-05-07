@@ -36,7 +36,7 @@ class OptimizeRequest(BaseModel):
                 "profile": {
                     "age": 25,
                     "income": 80.5,
-                    "is_unemployed": Ture,
+                    "is_unemployed": True,
                     "super_region": "서울특별시",
                     "sub_region": "강남구"
                 },
