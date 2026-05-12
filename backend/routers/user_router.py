@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from schemas.profile_schema import UserProfileRequest
 from pydantic import BaseModel
+from uuid import UUID
+import uuid
 
 router = APIRouter(prefix="/profiles", tags=["Users"])
 
@@ -9,7 +11,7 @@ class ProfileCreateResponse(BaseModel):
     """프로필 생성 응답"""
     status: str
     message: str
-    profile_id: int
+    profile_id: UUID
 
 
 @router.post("/", response_model=ProfileCreateResponse, status_code=201)
@@ -51,7 +53,7 @@ def create_user_profile(profile: UserProfileRequest):
     #     profile_id = new_profile.id
     
     # 더미 응답: 임시 ID 반환
-    dummy_profile_id = 1
+    dummy_profile_id = uuid.uuid4()
     
     return ProfileCreateResponse(
         status="success",

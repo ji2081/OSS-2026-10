@@ -47,7 +47,7 @@ class PolicyResponse(BaseModel):
     apply_end: Optional[date] = None
     is_active: bool = True
     target_unemployed_only: bool = False
-    exclusive_with: List[int] = Field(default_factory=list)
+    exclusive_with: List[UUID] = Field(default_factory=list)
     source_url: Optional[str] = None
     confidence: float = Field(..., ge=0.0, le=1.0, description="AI 추천 신뢰도")
 

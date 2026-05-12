@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import date
+from uuid import UUID
 
 
 class UserProfileRequest(BaseModel):
@@ -48,7 +49,7 @@ class OptimizeRequest(BaseModel):
 
 class TimelineItem(BaseModel):
     """간트 차트 UI를 위한 타임라인 아이템"""
-    policy_id: int = Field(..., description="정책 고유 ID")
+    policy_id: UUID = Field(..., description="정책 고유 ID")
     title: str = Field(..., description="정책명")
     start_date: date = Field(..., description="수혜 시작일")
     end_date: date = Field(..., description="수혜 종료일")
@@ -56,7 +57,7 @@ class TimelineItem(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "policy_id": 1,
+                "policy_id": "123e4567-e89b-12d3-a456-426614174000",
                 "title": "청년내일저축계좌",
                 "start_date": "2026-05-01",
                 "end_date": "2026-10-31"
