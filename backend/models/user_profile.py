@@ -10,6 +10,9 @@ class UserProfile(Base):
     # 식별자
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # [추가] Supabase 로그인 유저와 연결할 고유 ID 
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
     # 기본 인적 사항 (필수 조건)
     age = Column(Integer, nullable=False)
     region = Column(String, nullable=False, index=True)
