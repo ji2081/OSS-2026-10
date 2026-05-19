@@ -4,6 +4,7 @@ from routers.policy_router import router as policy_router
 from routers.user_router import router as user_router
 from database import engine
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(dotenv_path="../.env")
 
@@ -11,6 +12,13 @@ app = FastAPI(
     title="청년 정책 맞춤형 추천 API",
     description="청년을 위한 최적화된 정책 추천 서비스 (OSS-2026-10)",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

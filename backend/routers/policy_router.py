@@ -54,26 +54,47 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     print(f"최소 신뢰도: {request.min_confidence}")
     print("=" * 60)
 
-    # TODO: 실제 MWIS 알고리즘 적용
-    policies = db.query(Policy).limit(2).all()
+    # 1. 신뢰도 필터
+    query = db.query(Policy).filter(Policy.confidence >= request.min_confidence)
 
-    dummy_response = OptimizeResponse(
-        total_benefit=13800000,
-        selected_policies=[PolicyResponse.model_validate(p) for p in policies],
-        timeline=[
-            TimelineItem(
-                policy_id=policies[0].id,
-                title=policies[0].title,
-                start_date=date(2026, 5, 1),
-                end_date=date(2026, 10, 31)
-            ),
-            TimelineItem(
-                policy_id=policies[1].id,
-                title=policies[1].title,
-                start_date=date(2026, 11, 1),
-                end_date=date(2027, 4, 30)
-            )
-        ] if len(policies) >= 2 else []
+    # 2. 활성 정책만
+    query = query.filter(Policy.is_active == True)
+
+    # 3. 나이 필터
+    age = request.profile.age
+    query = query.filter(
+        (Policy.age_min == None) | (Policy.age_min <= age)
+    ).filter(
+        (Policy.age_max == None) | (Policy.age_max >= age)
     )
 
-    return dummy_response
+    # 4. 미취업 필터 — 미취업자 전용 정책은 미취업자만
+    if not request.profile.is_unemployed:
+        query = query.filter(Policy.target_unemployed_only == False)
+
+    policies = query.all()
+
+    print(f"[필터링 결과] {len(policies)}개 정책 매칭")
+
+    # 총 수혜액 계산
+    total = sum(p.total_benefit or 0 for p in policies)
+
+    # 타임라인 생성 (수혜기간 있는 정책만)
+    timeline = []
+    current_date = date.today()
+    for p in policies:
+        months = p.benefit_duration_months or 6
+        start = p.apply_start or current_date
+        end = p.apply_end or date(start.year + (start.month + months - 1) // 12, (start.month + months - 1) % 12 + 1, 1)
+        timeline.append(TimelineItem(
+            policy_id=p.id,
+            title=p.title,
+            start_date=start,
+            end_date=end,
+        ))
+
+    return OptimizeResponse(
+        total_benefit=total,
+        selected_policies=[PolicyResponse.model_validate(p) for p in policies],
+        timeline=timeline,
+    )

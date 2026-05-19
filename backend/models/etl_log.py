@@ -13,7 +13,7 @@ class ETLLog(Base):
     run_at = Column(DateTime, default=datetime.utcnow, nullable=False) 
     
     completed_at = Column(DateTime, nullable=True)
-    status = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, default='SUCCESS')
 
     # 데이터 처리 Funnel 지표
     total_extracted = Column(Integer, default=0)
