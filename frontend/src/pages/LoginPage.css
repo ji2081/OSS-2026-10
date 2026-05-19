@@ -280,3 +280,13 @@
   font-size: 12px;
   color: #999;
 }
+/* 소셜 로그인 */
+.social-divider { text-align: center; margin: 20px 0; position: relative; }
+.social-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #E0E0E0; }
+.social-divider span { background: #fff; padding: 0 12px; font-size: 12px; color: #999; position: relative; }
+
+.social-buttons { display: flex; gap: 8px; }
+.social-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px; border: 1px solid #E0E0E0; border-radius: 2px; background: #fff; font-size: 12px; font-weight: 500; color: #333; cursor: pointer; transition: background 0.15s; }
+.social-btn:hover { background: #F5F5F5; }
+.social-btn.kakao { background: #FEE500; border-color: #FEE500; color: #3C1E1E; }
+.social-btn.kakao:hover { background: #F0D800; }
