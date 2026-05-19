@@ -10,7 +10,7 @@ security = HTTPBearer()
 # .env에서 시크릿 키 가져오기
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
-# [추가] 시크릿 키 누락 방지 강력 가드
+# [추가] 시크릿 키 누락 방지 
 if not JWT_SECRET:
     raise RuntimeError("SUPABASE_JWT_SECRET 환경 변수가 설정되지 않았습니다! .env 파일을 확인하세요.")
 
