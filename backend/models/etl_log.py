@@ -22,5 +22,5 @@ class ETLLog(Base):
     total_failed = Column(Integer, default=0)
 
     # 에러 상세 기록 및 생성일
-    errors = Column(JSONB, default=list) # 에러 내역을 유연하게 담는 마법의 주머니
+    errors = Column(JSONB, default=list) 
     created_at = Column(DateTime, default=datetime.utcnow)

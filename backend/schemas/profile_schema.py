@@ -8,7 +8,7 @@ class UserProfileRequest(BaseModel):
     age: int = Field(..., ge=0, le=120, description="사용자 나이")
     
     # ※ 비즈니스 요구사항 변경 시: int로 변경 가능  (대부분 정책은 정수 단위 기준 사용)
-    income: Optional[float] = Field(None, ge=0.0, description="가구 소득 (중위소득 %, 단위: %)")
+    income: Optional[int] = Field(None, ge=0.0, description="가구 소득 (중위소득 %, 단위: %)")
     is_unemployed: bool = Field(True, description="미취업 여부")
     super_region: str = Field(..., description="광역 지역 (예: 서울특별시)")
     sub_region: Optional[str] = Field(None, description="기초 지역 (예: 강남구)")
@@ -94,6 +94,23 @@ class OptimizeResponse(BaseModel):
             }
         }
     )
+
+from pydantic import BaseModel
+from uuid import UUID
+
+# (아마 파일에 이미 들어있을 요청 스키마입니다)
+class UserProfileRequest(BaseModel):
+    age: int
+    income: int
+    is_unemployed: bool
+    super_region: str
+    sub_region: str
+
+# 👇 이 부분을 스키마 파일 맨 아래에 꼭 추가해 주세요!
+class ProfileCreateResponse(BaseModel):
+    status: str
+    message: str
+    profile_id: UUID  # 아까 int에서 UUID로 전면 교체하기로 했던 그 핵심입니다
 
 
 # PolicyResponse 순환 참조 해결
