@@ -58,6 +58,7 @@ if __name__ == "__main__":
     from services.mwis.graph_builder import build_graph
     from services.mwis.solvers.stage_a_naive import BruteForceSolver
     from services.mwis.solvers.stage_b_dp import DPDFSSolver
+    from services.mwis.solvers.stage_c_preprocess import PreprocessSolver
 
     with Session(engine) as db:
         policies = db.query(Policy).filter(
@@ -67,7 +68,7 @@ if __name__ == "__main__":
 
     adjacency, weights = build_graph(policies)
     results = run_benchmark(
-        solvers=[BruteForceSolver(), DPDFSSolver()],
+        solvers=[BruteForceSolver(), DPDFSSolver(), PreprocessSolver()],
         adjacency_list=adjacency,
         weights=weights,
     )
