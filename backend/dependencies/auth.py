@@ -9,10 +9,15 @@ security = HTTPBearer()
 
 # .env에서 시크릿 키 가져오기
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+
+# [추가] 시크릿 키 누락 방지 강력 가드
+if not JWT_SECRET:
+    raise RuntimeError("SUPABASE_JWT_SECRET 환경 변수가 설정되지 않았습니다! .env 파일을 확인하세요.")
+
 ALGORITHM = "HS256"
 
 def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security)) -> UUID:
-    """헤더의 Bearer 토큰을 검증하고 유저의 UUID를 반환합니다."""
+    # 헤더의 Bearer 토큰을 검증하고 유저의 UUID를 반환
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="로그인이 필요한 서비스입니다.",
