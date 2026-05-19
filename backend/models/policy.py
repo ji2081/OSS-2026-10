@@ -40,5 +40,5 @@ class Policy(Base):
 
     # 관리 상태 및 타임스탬프
     is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)  # 이 부분 supabase에서 추가필요
+   # created_at = Column(DateTime, default=datetime.utcnow)  # 이 부분 supabase에서 추가필요
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

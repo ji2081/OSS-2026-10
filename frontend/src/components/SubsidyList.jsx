@@ -128,7 +128,7 @@ function SubsidyList({
           </div>
           <div className="subsidy-amount-area">
             <div className="subsidy-amount">
-              {subsidy.amount.toLocaleString()}
+              {subsidy.amount ? subsidy.amount.toLocaleString() : "별도 안내"}
               <span className="amount-unit">만원</span>
             </div>
             <div className="expand-arrow">{isExpanded ? "▲" : "▼"}</div>
@@ -221,7 +221,10 @@ function SubsidyList({
                               {recommended?.name}
                             </span>
                             <span className="dup-rec-amount">
-                              {recommended?.amount.toLocaleString()}만원
+                              {recommended?.amount
+                                ? recommended.amount.toLocaleString()
+                                : "별도 안내"}
+                              만원
                             </span>
                           </div>
                           <p className="dup-rec-reason">{group.reason}</p>
@@ -233,7 +236,10 @@ function SubsidyList({
                               <span className="dup-alt-badge">대안</span>
                               <span className="dup-alt-name">{o?.name}</span>
                               <span className="dup-alt-amount">
-                                {o?.amount.toLocaleString()}만원
+                                {o?.amount
+                                  ? o.amount.toLocaleString()
+                                  : "별도 안내"}
+                                만원
                               </span>
                             </div>
                           );

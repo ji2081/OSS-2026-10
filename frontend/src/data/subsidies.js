@@ -443,3 +443,84 @@ export const OPTIMAL_COMBINATION = [
   "transport-support",
   "kpass",
 ];
+
+export function mapPolicyToSubsidy(policy) {
+  const typeMap = {
+    subsidy: "grant",
+    cashback: "grant",
+    pass: "grant",
+    loan: "loan",
+    interest_subsidy: "loan",
+    savings: "savings",
+    voucher: "service",
+    goods: "service",
+    service: "service",
+    other: "service",
+  };
+  return {
+    id: policy.id,
+    name: policy.title,
+    category: policy.category,
+    type: typeMap[policy.benefit_type] || "grant",
+    amount: policy.total_benefit
+      ? Math.round(policy.total_benefit / 10000)
+      : null,
+    provider: policy.host_org,
+    startDate: policy.apply_start?.slice(0, 7),
+    endDate: policy.apply_end?.slice(0, 7),
+    description: policy.benefit_description,
+    duplicateGroup: policy.exclusive_with?.length
+      ? policy.exclusive_with[0]
+      : null,
+    isDuplicate: policy.exclusive_with?.length > 0,
+    duplicateWith: policy.exclusive_with || [],
+    warning: null,
+    eligibility: {
+      minAge: policy.age_min || undefined,
+      maxAge: policy.age_max || undefined,
+      maxIncome: policy.income_limit || undefined,
+      requireUnemployed: policy.target_unemployed_only || false,
+    },
+    applyUrl: policy.source_url || null,
+  };
+}
+
+export function mapPolicyToBenefit(policy) {
+  const catMap = {
+    health: "welfare",
+    welfare: "welfare",
+    culture: "culture",
+    employment: "employment",
+    education: "employment",
+    startup: "employment",
+    housing: "welfare",
+    finance: "welfare",
+  };
+  return {
+    id: policy.id,
+    name: policy.title,
+    category: catMap[policy.category] || "welfare",
+    type: policy.benefit_type,
+    typeLabel: policy.benefit_type,
+    amount: policy.total_benefit
+      ? Math.round(policy.total_benefit / 10000)
+      : null,
+    amountLabel: policy.total_benefit
+      ? `최대 ${Math.round(policy.total_benefit / 10000).toLocaleString()}만원`
+      : "별도 안내",
+    provider: policy.host_org,
+    description: policy.benefit_description,
+    applyUrl: policy.source_url || null,
+    tags: [policy.category, policy.benefit_type].filter(Boolean),
+    period: policy.apply_start
+      ? {
+          start: policy.apply_start.slice(0, 7),
+          end: policy.apply_end?.slice(0, 7),
+        }
+      : null,
+    eligibility: {},
+    isOneTime: false,
+    isRecurring: false,
+    howToApply: "해당 기관 홈페이지 또는 방문 신청",
+  };
+}

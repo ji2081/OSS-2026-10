@@ -62,52 +62,176 @@ function DashboardPage({ userName, onLogout }) {
   const [selectedSubsidies, setSelectedSubsidies] = useState({});
   const [filteredSubsidies, setFilteredSubsidies] = useState([]);
   const [hasOptimized, setHasOptimized] = useState(false);
+  const [extraBenefits, setExtraBenefits] = useState([]);
 
-  const handleOptimize = () => {
-    const eligible = MOCK_SUBSIDIES.filter((s) =>
-      checkEligibility(s, activeCondition),
-    );
-    setFilteredSubsidies(eligible);
-    const newSelections = {};
-    eligible
-      .filter((s) => s.type === "grant")
-      .forEach((s) => {
-        if (s.duplicateGroup) {
-          const group = DUPLICATE_GROUPS.find((g) => g.id === s.duplicateGroup);
-          newSelections[s.id] = group ? group.recommendedId === s.id : false;
-        } else {
-          newSelections[s.id] = true;
-        }
+  const handleOptimize = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/policies/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile: {
+            age: activeCondition.age,
+            income: activeCondition.isBelow150Median ? 100 : 200,
+            is_unemployed: !activeCondition.isEmployed,
+            super_region: "서울특별시",
+            sub_region: activeCondition.district,
+          },
+          min_confidence: 0.5,
+        }),
       });
-    setSelectedSubsidies(newSelections);
-    setHasOptimized(true);
+      const data = await res.json();
+
+      // 백엔드 응답 → 프론트 형태로 변환
+      const categoryMap = {
+        housing: "realestate",
+        finance: "asset",
+        employment: "employment",
+        education: "employment",
+        health: "living",
+        culture: "culture",
+        welfare: "living",
+        startup: "employment",
+      };
+      const typeMap = {
+        subsidy: "grant",
+        loan: "loan",
+        savings: "savings",
+        voucher: "grant",
+        interest_subsidy: "grant",
+        goods: "grant",
+        cashback: "grant",
+        pass: "grant",
+        other: "grant",
+      };
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const nextMonth = now.getMonth() + 2;
+      const nextMonthStr = `${nextMonth > 12 ? year + 1 : year}-${String(nextMonth > 12 ? 1 : nextMonth).padStart(2, "0")}`;
+
+      const converted = data.selected_policies.map((p) => ({
+        id: p.id,
+        name: p.title,
+        category: categoryMap[p.category] || "living",
+        type: typeMap[p.benefit_type] || "grant",
+        amount: p.total_benefit ? Math.round(p.total_benefit / 10000) : 0,
+        startDate: p.apply_start ? p.apply_start.slice(0, 7) : nextMonthStr,
+        endDate: p.apply_end ? p.apply_end.slice(0, 7) : `${year}-12`,
+        provider: p.host_org || "",
+        isDuplicate: p.exclusive_with.length > 0,
+        duplicateGroup: null,
+        duplicateWith: p.exclusive_with,
+        warning: p.target_unemployed_only ? "미취업자" : null,
+        description: p.benefit_description || "",
+        documents: [],
+        applyUrl: p.source_url,
+        deadline: p.apply_end,
+      }));
+
+      const mainPolicies = converted.filter((p) => p.amount && p.amount > 0);
+      const nullAmountPolicies = converted.filter(
+        (p) => !p.amount || p.amount === 0,
+      );
+      const benefitCatMap = {
+        employment: "employment",
+        realestate: "welfare",
+        living: "welfare",
+        transport: "welfare",
+        asset: "welfare",
+        culture: "culture",
+      };
+
+      const nullAsBenefits = nullAmountPolicies.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: benefitCatMap[p.category] || "welfare",
+        type: p.type,
+        typeLabel:
+          p.type === "loan" ? "대출" : p.type === "savings" ? "적금" : "서비스",
+        amount: null,
+        amountLabel: "별도 안내",
+        provider: p.provider,
+        description: p.description,
+        applyUrl: p.applyUrl,
+        tags: [],
+        period: p.startDate ? { start: p.startDate, end: p.endDate } : null,
+        eligibility: {},
+        isOneTime: false,
+        isRecurring: false,
+        howToApply: "해당 기관 홈페이지 또는 방문 신청",
+      }));
+      setExtraBenefits(nullAsBenefits);
+      setFilteredSubsidies(mainPolicies);
+
+      // 1. 모든 정책을 기본적으로 선택 상태로 만듦
+      const newSelections = {};
+      converted.forEach((s) => {
+        newSelections[s.id] = true;
+      });
+
+      setSelectedSubsidies(newSelections);
+      setHasOptimized(true);
+
+      // 2. (선택사항) 백엔드의 전체 금액을 쓰고 싶다면 console로 확인해봐
+      console.log("백엔드 추천 총액:", data.total_benefit);
+    } catch (err) {
+      console.error("API 에러:", err);
+      // 실패 시 더미 데이터로 폴백
+      const eligible = MOCK_SUBSIDIES.filter((s) =>
+        checkEligibility(s, activeCondition),
+      );
+      setFilteredSubsidies(eligible);
+      const newSelections = {};
+      eligible
+        .filter((s) => s.type === "grant")
+        .forEach((s) => {
+          if (s.duplicateGroup) {
+            const group = DUPLICATE_GROUPS.find(
+              (g) => g.id === s.duplicateGroup,
+            );
+            newSelections[s.id] = group ? group.recommendedId === s.id : false;
+          } else {
+            newSelections[s.id] = true;
+          }
+        });
+      setSelectedSubsidies(newSelections);
+      setHasOptimized(true);
+    }
   };
 
   const toggleSubsidy = (subsidyId) => {
-    const subsidy = MOCK_SUBSIDIES.find((s) => s.id === subsidyId);
+    // 1. MOCK 데이터가 아니라 백엔드에서 받아온 '진짜 데이터'에서 찾습니다.
+    const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
+
+    // 2. 만약 정책을 찾았고, 중복 제한 그룹(duplicateGroup)이 있는 경우
     if (subsidy && subsidy.duplicateGroup) {
       const group = DUPLICATE_GROUPS.find(
         (g) => g.id === subsidy.duplicateGroup,
       );
+
       if (group) {
         setSelectedSubsidies((prev) => {
           const next = { ...prev };
+          // 같은 그룹에 속한 다른 정책들은 모두 체크 해제(false)
           group.items.forEach((id) => {
             next[id] = false;
           });
+          // 현재 클릭한 것만 반전
           next[subsidyId] = !prev[subsidyId];
           return next;
         });
         return;
       }
     }
+
+    // 3. 중복 제한이 없는 일반 정책이거나 데이터를 못 찾았을 때의 기본 동작
     setSelectedSubsidies((prev) => ({
       ...prev,
       [subsidyId]: !prev[subsidyId],
     }));
   };
-
-  const grants = filteredSubsidies.filter((s) => s.type === "grant");
+  const grants = filteredSubsidies;
   const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
   const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
   const selectedCount = selectedGrants.length;
@@ -245,7 +369,10 @@ function DashboardPage({ userName, onLogout }) {
       {/* 알짜배기 정보 */}
       {currentPage === "benefits" && (
         <div className="subpage-wrap">
-          <BenefitsPage condition={activeCondition} />
+          <BenefitsPage
+            condition={activeCondition}
+            dbBenefits={extraBenefits}
+          />
         </div>
       )}
     </div>

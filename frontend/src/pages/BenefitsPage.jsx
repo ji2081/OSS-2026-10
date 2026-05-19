@@ -2,7 +2,7 @@
 //
 // ──────────────────────────────────────────────────────────────────────────────
 // [DB 연동 가이드]
-// BENEFITS_DATA 배열을 API 응답으로 교체하면 본기능이 동작합니다.
+// benefitsToUse 배열을 API 응답으로 교체하면 본기능이 동작합니다.
 // 각 혜택 객체의 스키마는 아래 타입 주석을 참고하세요.
 // checkEligibility() 함수는 condition 객체와 benefit.eligibility를 비교합니다.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -220,11 +220,12 @@ export function checkEligibility(benefit, condition) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-function BenefitsPage({ condition }) {
+function BenefitsPage({ condition, dbBenefits = [] }) {
   const [activeCategory, setActiveCategory] = useState("all");
   const [detailItem, setDetailItem] = useState(null);
+  const benefitsToUse = dbBenefits.length > 0 ? dbBenefits : BENEFITS_DATA;
 
-  const filtered = BENEFITS_DATA.filter(
+  const filtered = benefitsToUse.filter(
     (b) => activeCategory === "all" || b.category === activeCategory,
   );
   const eligible = filtered.filter((b) => checkEligibility(b, condition));
@@ -232,8 +233,8 @@ function BenefitsPage({ condition }) {
 
   const countByCategory = (key) =>
     key === "all"
-      ? BENEFITS_DATA.length
-      : BENEFITS_DATA.filter((b) => b.category === key).length;
+      ? benefitsToUse.length
+      : benefitsToUse.filter((b) => b.category === key).length;
 
   return (
     <div className="benefits-page">
@@ -397,7 +398,9 @@ function BenefitCard({ benefit, onDetail, dimmed }) {
       <p className="bc-desc">{benefit.description}</p>
 
       <div className="bc-bottom">
-        <span className="bc-amount">{benefit.amountLabel}</span>
+        {benefit.amountLabel !== "별도 안내" && (
+          <span className="bc-amount">{benefit.amountLabel}</span>
+        )}
         <span className="bc-provider">{benefit.provider}</span>
       </div>
     </div>

@@ -7,9 +7,16 @@ import "./RoadmapPage.css";
 const ALL_CATEGORIES = {
   living: { label: "생활지원", color: "#E53935" },
   realestate: { label: "주거", color: "#43A047" },
+  housing: { label: "주거", color: "#43A047" },
   employment: { label: "취업·교육", color: "#FB8C00" },
+  education: { label: "취업·교육", color: "#FB8C00" },
+  startup: { label: "창업", color: "#FB8C00" },
   transport: { label: "교통", color: "#8E24AA" },
   asset: { label: "자산형성", color: "#007AFF" },
+  finance: { label: "자산형성", color: "#007AFF" },
+  culture: { label: "문화", color: "#FF375F" },
+  health: { label: "건강", color: "#00BCD4" },
+  welfare: { label: "복지", color: "#5AC8FA" },
 };
 
 // ── 신청 기간 데이터 ──────────────────────────────────────────────────────────
@@ -135,6 +142,9 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   }, []);
 
   // ── 빈 상태 ────────────────────────────────────────────────────────────────
+  console.log("selectedItems:", selectedItems);
+  console.log("selectedSubsidies:", selectedSubsidies);
+
   if (!hasOptimized || selectedItems.length === 0) {
     return (
       <div className="roadmap-page">
@@ -150,19 +160,18 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   // ── 활성 시작월 ────────────────────────────────────────────────────────────
   const getStartMonth = (item) => {
     const win = APP_WINDOWS[item.id];
-    return selStart[item.id] ?? (win?.applyStart || item.startDate);
+    const fallback =
+      item.startDate || item.apply_start?.slice(0, 7) || "2025-01";
+    return selStart[item.id] ?? (win?.applyStart || fallback);
   };
 
   const getDuration = (item) => {
     if (ONE_TIME_IDS.has(item.id) || item.isOneTime) return 1;
-    return (
-      APP_WINDOWS[item.id]?.duration ??
-      (() => {
-        const s = dateToAbs(item.startDate);
-        const e = dateToAbs(item.endDate);
-        return Math.max(e - s + 1, 1);
-      })()
-    );
+    if (APP_WINDOWS[item.id]?.duration) return APP_WINDOWS[item.id].duration;
+    if (!item.startDate || !item.endDate) return 12;
+    const s = dateToAbs(item.startDate);
+    const e = dateToAbs(item.endDate);
+    return Math.max(e - s + 1, 1);
   };
 
   // ── 베이스 = 가장 빠른 시작월 ─────────────────────────────────────────────
@@ -186,6 +195,8 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
 
   // ── 막대 위치 계산 ────────────────────────────────────────────────────────
   const getBarProps = (item) => {
+    const startMonth = getStartMonth(item);
+    if (!startMonth) return { hidden: true };
     const startAbs = dateToAbs(getStartMonth(item));
     const duration = getDuration(item);
     const endAbs = startAbs + duration;
@@ -299,7 +310,14 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
           {selectedItems.map((item) => {
             const win = APP_WINDOWS[item.id];
             const options =
-              win && !win.isAlwaysOpen ? getMonthOptions(win) : [];
+              win && !win.isAlwaysOpen
+                ? getMonthOptions(win)
+                : item.startDate && item.endDate
+                  ? getMonthOptions({
+                      applyStart: item.startDate,
+                      applyEnd: item.endDate,
+                    })
+                  : [];
             const curStart = getStartMonth(item);
             const color = ALL_CATEGORIES[item.category]?.color || "#999";
 
@@ -443,7 +461,15 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
       {detailItem &&
         (() => {
           const win = APP_WINDOWS[detailItem.id];
-          const options = win && !win.isAlwaysOpen ? getMonthOptions(win) : [];
+          const options =
+            win && !win.isAlwaysOpen
+              ? getMonthOptions(win)
+              : detailItem.startDate && detailItem.endDate
+                ? getMonthOptions({
+                    applyStart: detailItem.startDate,
+                    applyEnd: detailItem.endDate,
+                  })
+                : [];
           const curStart = getStartMonth(detailItem);
           const duration = getDuration(detailItem);
           const endAbs = dateToAbs(curStart) + duration - 1;
