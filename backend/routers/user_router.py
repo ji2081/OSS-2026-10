@@ -13,23 +13,22 @@ router = APIRouter(prefix="/profiles", tags=["Users"])
 def create_user_profile(
     profile_data: UserProfileRequest, 
     db: Session = Depends(get_db),
-    current_user_id: UUID = Depends(get_current_user) # 🛡️ 보안: 로그인한 유저만 가능
+    current_user_id: UUID = Depends(get_current_user) # 로그인한 유저만 가능
 ):
-    """
-    [진짜 로직] 로그인한 사용자의 개인 프로필을 DB에 저장합니다.
-    """
+    
     try:
-        # 1. DB 모델 객체 생성 (로그인한 유저의 ID를 외래키로 연결)
+        # DB 모델 객체 생성
         new_profile = UserProfile(
-            user_id=current_user_id, # Supabase에서 가져온 진짜 유저 ID
+            user_id=current_user_id, 
             age=profile_data.age,
             income=profile_data.income,
-            is_unemployed=profile_data.is_unemployed,
-            super_region=profile_data.super_region,
+            income_level=profile_data.income_level, 
+            is_employed=profile_data.is_employed,   
+            region=profile_data.region,             
             sub_region=profile_data.sub_region
         )
         
-        # 2. DB에 저장
+        # DB에 저장
         db.add(new_profile)
         db.commit()
         db.refresh(new_profile) # 저장된 후 생성된 UUID 등을 다시 읽어옴
