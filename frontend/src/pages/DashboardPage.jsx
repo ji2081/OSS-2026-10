@@ -72,9 +72,9 @@ function DashboardPage({ userName, onLogout }) {
         body: JSON.stringify({
           profile: {
             age: activeCondition.age,
-            income: activeCondition.isBelow150Median ? 100 : 200,
-            is_unemployed: !activeCondition.isEmployed,
-            super_region: "서울특별시",
+            income_level: activeCondition.isBelow150Median ? 100 : 200, // income → income_level
+            is_employed: activeCondition.isEmployed, // is_unemployed → is_employed
+            region: "서울특별시", // super_region → region
             sub_region: activeCondition.district,
           },
           min_confidence: 0.5,
@@ -166,9 +166,11 @@ function DashboardPage({ userName, onLogout }) {
 
       // 1. 모든 정책을 기본적으로 선택 상태로 만듦
       const newSelections = {};
-      converted.forEach((s) => {
-        newSelections[s.id] = true;
-      });
+      mainPolicies
+        .filter((s) => s.type === "grant")
+        .forEach((s) => {
+          newSelections[s.id] = true;
+        });
 
       setSelectedSubsidies(newSelections);
       setHasOptimized(true);
@@ -231,7 +233,7 @@ function DashboardPage({ userName, onLogout }) {
       [subsidyId]: !prev[subsidyId],
     }));
   };
-  const grants = filteredSubsidies;
+  const grants = filteredSubsidies.filter((s) => s.type === "grant");
   const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
   const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
   const selectedCount = selectedGrants.length;

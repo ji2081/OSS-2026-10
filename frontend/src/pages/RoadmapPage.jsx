@@ -108,8 +108,8 @@ function absToLabel(abs) {
 // 신청 가능한 모든 월 목록 생성
 function getMonthOptions(win) {
   if (!win) return [];
-  const startAbs = dateToAbs(win.applyStart);
-  const endAbs = dateToAbs(win.applyEnd);
+  const startAbs = dateToAbs(win?.applyStart);
+  const endAbs = dateToAbs(win?.applyEnd);
   const options = [];
   for (let abs = startAbs; abs <= endAbs; abs++) {
     options.push(absToYYYYMM(abs));
@@ -160,8 +160,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   // ── 활성 시작월 ────────────────────────────────────────────────────────────
   const getStartMonth = (item) => {
     const win = APP_WINDOWS[item.id];
-    const fallback =
-      item.startDate || item.apply_start?.slice(0, 7) || "2025-01";
+    const fallback = item.startDate || "2025-01";
     return selStart[item.id] ?? (win?.applyStart || fallback);
   };
 
@@ -514,7 +513,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                   <div className="rm-windows">
                     <span className="rm-windows-title">신청 시작월 선택</span>
                     <p className="rm-windows-hint">
-                      신청 가능 기간: {win.applyStart} ~ {win.applyEnd}
+                      신청 가능 기간: {win?.applyStart} ~ {win?.applyEnd}
                     </p>
                     <select
                       className="rm-month-select"
@@ -539,7 +538,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                   <div className="rm-windows">
                     <span className="rm-windows-title">신청 기간</span>
                     <p className="rm-windows-hint">
-                      상시 신청 가능 ({win.applyStart} ~ {win.applyEnd})
+                      상시 신청 가능 ({win?.applyStart} ~ {win?.applyEnd})
                     </p>
                   </div>
                 )}

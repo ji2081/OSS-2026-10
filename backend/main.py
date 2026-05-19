@@ -4,7 +4,9 @@ from routers.policy_router import router as policy_router
 from routers.user_router import router as user_router
 from database import engine
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
+# 환경 변수 로드
 load_dotenv(dotenv_path="../.env")
 
 app = FastAPI(
@@ -23,16 +25,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/test-db")
 def test_db_connection():
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-            return {"status": "success", "message": "Supabase DB 연결 완벽하게 성공!"}
+            return {"status": "success", "message": "Supabase DB 연결 성공"}
     except Exception as e:
         return {"status": "error", "message": f"연결 실패: {str(e)}"}
-
 
 @app.get("/")
 def read_root():
@@ -41,7 +41,6 @@ def read_root():
         "docs": "/docs",
         "version": "0.1.0"
     }
-
 
 app.include_router(policy_router)
 app.include_router(user_router)

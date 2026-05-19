@@ -13,7 +13,7 @@ class ETLLog(Base):
     run_at = Column(DateTime, default=datetime.utcnow, nullable=False) 
     
     completed_at = Column(DateTime, nullable=True)
-    status = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False, default='SUCCESS')
 
     # 데이터 처리 Funnel 지표
     total_extracted = Column(Integer, default=0)
@@ -22,5 +22,5 @@ class ETLLog(Base):
     total_failed = Column(Integer, default=0)
 
     # 에러 상세 기록 및 생성일
-    errors = Column(JSONB, default=list) # 에러 내역을 유연하게 담는 마법의 주머니
+    errors = Column(JSONB, default=list) 
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -36,3 +36,7 @@ etl_checkpoint.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Cursor 에디터 설정 파일 제외
+.cursor/
+.cursorrules

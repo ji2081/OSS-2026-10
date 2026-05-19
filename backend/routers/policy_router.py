@@ -48,9 +48,9 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     print("=" * 60)
     print("[POST /optimize] 요청 수신")
     print(f"나이: {request.profile.age}")
-    print(f"소득: {request.profile.income}")
-    print(f"미취업 여부: {request.profile.is_unemployed}")
-    print(f"지역: {request.profile.super_region} / {request.profile.sub_region}")
+    print(f"소득: {request.profile.income_level}")
+    print(f"미취업 여부: {request.profile.is_employed}")
+    print(f"지역: {request.profile.region} / {request.profile.sub_region}")
     print(f"최소 신뢰도: {request.min_confidence}")
     print("=" * 60)
 
@@ -69,7 +69,7 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     )
 
     # 4. 미취업 필터 — 미취업자 전용 정책은 미취업자만
-    if not request.profile.is_unemployed:
+    if not request.profile.is_employed:
         query = query.filter(Policy.target_unemployed_only == False)
 
     policies = query.all()
