@@ -9,6 +9,9 @@ from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineIt
 from database import get_db
 from models import Policy
 
+from services.mwis.graph_builder import build_graph
+from services.mwis.solvers.stage_c_2_preprocess import PreprocessSolver
+
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
 
@@ -76,13 +79,40 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
 
     print(f"[필터링 결과] {len(policies)}개 정책 매칭")
 
-    # 총 수혜액 계산
-    total = sum(p.total_benefit or 0 for p in policies)
+    # ---------------------------------------------------------------------
+    # [수정 구간 시작] 알고리즘 이식
+    # ---------------------------------------------------------------------
+    
+    # 엣지 케이스 방어: 조건에 맞는 정책이 0개면 즉시 빈 결과 반환
+    if not policies:
+        return OptimizeResponse(
+            total_benefit=0,
+            selected_policies=[],
+            timeline=[],
+        )
 
-    # 타임라인 생성 (수혜기간 있는 정책만)
+    # 1. 그래프 빌더를 통해 알고리즘이 먹을 수 있는 형태로 변환
+    adjacency_list, weights = build_graph(policies)
+
+    # 2. 가장 빠른 Stage C 전처리 알고리즘 가동
+    solver = PreprocessSolver()
+    result = solver.solve(adjacency_list, weights)
+
+    # 3. 전체 매칭 정책 중, 알고리즘이 '최적'이라고 고른 정책 객체들만 필터링
+    selected_set = frozenset(result.selected_ids)
+    optimized_policies = [p for p in policies if p.id in selected_set]
+
+    # ---------------------------------------------------------------------
+    # [수정 구간 끝]
+    # ---------------------------------------------------------------------
+
+    # 총 수혜액 (알고리즘이 계산해준 완벽한 최적 금액 사용)
+    total = result.total_benefit
+
+    # 타임라인 생성 (최적화된 정책들로만 타임라인 구성!)
     timeline = []
     current_date = date.today()
-    for p in policies:
+    for p in optimized_policies:  # policies -> optimized_policies 로 변경
         months = p.benefit_duration_months or 6
         start = p.apply_start or current_date
         end = p.apply_end or date(start.year + (start.month + months - 1) // 12, (start.month + months - 1) % 12 + 1, 1)
@@ -95,6 +125,6 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
 
     return OptimizeResponse(
         total_benefit=total,
-        selected_policies=[PolicyResponse.model_validate(p) for p in policies],
+        selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies], # policies -> optimized_policies 로 변경
         timeline=timeline,
     )
