@@ -112,15 +112,24 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     # 타임라인 생성 (최적화된 정책들로만 타임라인 구성!)
     timeline = []
     current_date = date.today()
-    for p in optimized_policies:  # policies -> optimized_policies 로 변경
-        months = p.benefit_duration_months or 6
+    for p in optimized_policies:  
+
+        # 1. 금요일 전까지 DB에 컬럼이 없으므로 getattr로 안전하게 가져오기 (없으면 False)
+        is_always = getattr(p, 'is_always_open', False)
+        is_sched = getattr(p, 'is_scheduled', False)
+        
+        # 2. 날짜 계산 (기존 로직 유지하되, 나중에 고도화 가능)
+        months = getattr(p, 'benefit_duration_months', 6) or 6
         start = p.apply_start or current_date
         end = p.apply_end or date(start.year + (start.month + months - 1) // 12, (start.month + months - 1) % 12 + 1, 1)
+
         timeline.append(TimelineItem(
             policy_id=p.id,
             title=p.title,
             start_date=start,
             end_date=end,
+            is_always_open=is_always,
+            is_scheduled=is_sched
         ))
 
     return OptimizeResponse(

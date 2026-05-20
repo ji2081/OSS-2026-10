@@ -33,10 +33,15 @@ class OptimizeRequest(BaseModel):
     min_confidence: Optional[float] = Field(0.5, ge=0.0, le=1.0, description="최소 신뢰도 필터")
 
 class TimelineItem(BaseModel):
-    policy_id: UUID = Field(..., description="정책 고유 ID")
-    title: str = Field(..., description="정책명")
-    start_date: date = Field(..., description="수혜 시작일")
-    end_date: date = Field(..., description="수혜 종료일")
+    class TimelineItem(BaseModel):
+    policy_id: UUID
+    title: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    
+    # 추가 뱃지용 필드
+    is_always_open: bool = False
+    is_scheduled: bool = False
 
 class OptimizeResponse(BaseModel):
     total_benefit: int = Field(..., description="선택된 정책들의 총 혜택 금액 (원)")
