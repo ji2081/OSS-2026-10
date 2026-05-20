@@ -67,7 +67,7 @@ from __future__ import annotations
 import time
 from uuid import UUID
 
-from backend.services.mwis.base_solver import BaseMWISSolver, SolverResult
+from services.mwis.base_solver import BaseMWISSolver, SolverResult
 
 __all__ = ["BranchAndBoundSolver"]
 

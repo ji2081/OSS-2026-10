@@ -1,9 +1,9 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from sqlalchemy import text
 from routers.policy_router import router as policy_router
 from routers.user_router import router as user_router
 from database import engine
-from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
 # 환경 변수 로드

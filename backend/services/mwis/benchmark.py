@@ -56,20 +56,34 @@ if __name__ == "__main__":
     from database import engine
     from models import Policy
     from services.mwis.graph_builder import build_graph
+
     from services.mwis.solvers.stage_a_naive import BruteForceSolver
     from services.mwis.solvers.stage_b_dp import DPDFSSolver
-    from services.mwis.solvers.stage_c_preprocess import PreprocessSolver
+    from services.mwis.solvers.stage_c_1_bnb import BranchAndBoundSolver
+    from services.mwis.solvers.stage_c_2_preprocess import PreprocessSolver
+    from services.mwis.solvers.stage_c_3_clique import ComplementGraphCliqueSolver
 
+
+    # 1. DB에서 정책 데이터 가져오기 -> 현재 30개
     with Session(engine) as db:
-        policies = db.query(Policy).filter(
-            Policy.is_active == True,
-            Policy.total_benefit.isnot(None)
-        ).all()
+        policies = db.query(Policy).limit(30).all()
+        
+    print(f"[*] DB에서 {len(policies)}개의 정책을 불러왔습니다.")
 
-    adjacency, weights = build_graph(policies)
-    results = run_benchmark(
-        solvers=[BruteForceSolver(), DPDFSSolver(), PreprocessSolver()],
-        adjacency_list=adjacency,
-        weights=weights,
-    )
+    # 2. 그래프 빌드
+    adjacency_list, weights = build_graph(policies)
+    print(f"[*] 그래프 생성 완료 (노드: {len(adjacency_list)}개)")
+
+    # 3. 5개 알고리즘 장전
+    solvers = [
+        # BruteForceSolver(),
+        DPDFSSolver(),
+        PreprocessSolver(),
+        BranchAndBoundSolver(),
+        ComplementGraphCliqueSolver(),
+    ]
+
+    # 4. 벤치마크 실행 및 결과 출력
+    print("[*] 5개 알고리즘 벤치마크 테스트를 시작합니다...")
+    results = run_benchmark(solvers, adjacency_list, weights)
     print_report(results)
