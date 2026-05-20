@@ -72,7 +72,7 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     )
 
     # 4. 미취업 필터 — 미취업자 전용 정책은 미취업자만
-    if not request.profile.is_employed:
+    if request.profile.is_employed:
         query = query.filter(Policy.target_unemployed_only == False)
 
     policies = query.all()
