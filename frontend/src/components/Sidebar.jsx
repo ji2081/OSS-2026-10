@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DISTRICTS,
   EDUCATION_OPTIONS,
@@ -11,10 +12,14 @@ function Sidebar({
   onSetChange,
   onAddSet,
   onRemoveSet,
+  onRenameSet,
   condition,
   onUpdateCondition,
   onOptimize,
 }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -29,24 +34,29 @@ function Sidebar({
             className={`condition-tab ${s.id === activeSetId ? "active" : ""}`}
             onClick={() => onSetChange(s.id)}
           >
-            조건 {index + 1}
+            {editingId === s.id ? (
+              <input
+                className="tab-edit-input"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={() => { onRenameSet(s.id, editName || `조건 ${index + 1}`); setEditingId(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { onRenameSet(s.id, editName || `조건 ${index + 1}`); setEditingId(null); } }}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+              />
+            ) : (
+              <>
+                {s.name || `조건 ${index + 1}`}
+                <span className="tab-edit" onClick={(e) => { e.stopPropagation(); setEditingId(s.id); setEditName(s.name || `조건 ${index + 1}`); }}>✎</span>
+              </>
+            )}
             {conditionSets.length > 1 && (
-              <span
-                className="tab-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveSet(s.id);
-                }}
-              >
-                ✕
-              </span>
+              <span className="tab-remove" onClick={(e) => { e.stopPropagation(); onRemoveSet(s.id); }}>✕</span>
             )}
           </button>
         ))}
         {conditionSets.length < 4 && (
-          <button className="condition-tab add-tab" onClick={onAddSet}>
-            +
-          </button>
+          <button className="condition-tab add-tab" onClick={onAddSet}>+</button>
         )}
       </div>
 

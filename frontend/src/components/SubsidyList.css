@@ -420,6 +420,10 @@
   font-size: 10px;
   color: #bbb;
 }
+.tab-edit { font-size: 10px; margin-left: 4px; opacity: 0.4; cursor: pointer; }
+.tab-edit:hover { opacity: 1; }
+.tab-edit-input { width: 60px; border: none; border-bottom: 1px solid #fff; background: transparent; color: inherit; font-size: 12px; outline: none; padding: 0; }
+.condition-tab.active .tab-edit-input { border-bottom-color: #fff; color: #fff; }
 
 /* Responsive */
 @media (max-width: 768px) {
