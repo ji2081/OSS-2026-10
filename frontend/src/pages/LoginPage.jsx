@@ -203,12 +203,15 @@ function LoginPage({ onLogin }) {
               <p className="login-subtitle">이메일로 가입하세요</p>
             </div>
             {signupSuccess ? (
-              <div className="signup-success">
-                <div className="success-icon">✅</div>
-                <p>회원가입이 완료되었습니다!</p>
-                <span>로그인 화면으로 이동합니다...</span>
-              </div>
-            ) : (
+  <div className="signup-success">
+    <div className="success-icon">✅</div>
+    <p>회원가입이 완료되었습니다!</p>
+    <span>입력하신 이메일로 인증 메일이 발송되었습니다.</span>
+    <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#999' }}>
+      메일함에서 "Confirm your mail"을 클릭한 후 로그인해주세요.
+    </span>
+  </div>
+) : (
               <form onSubmit={handleSignup} className="login-form">
                 <div className="input-group">
                   <label htmlFor="signupEmail">이메일</label>
