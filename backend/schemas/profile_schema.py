@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 
@@ -28,6 +28,19 @@ class ProfileCreateResponse(BaseModel):
     status: str
     message: str
     profile_id: UUID
+
+
+class UserProfileResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    age: int
+    income_level: Optional[int] = None
+    is_employed: bool
+    region: str
+    sub_region: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OptimizeRequest(BaseModel):
