@@ -42,6 +42,12 @@ def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
 
     return policy
 
+def get_total_benefit(policy):
+    if not policy.tiers:
+        return 0
+    tier = policy.tiers[0]
+    return (tier.monthly_benefit or 0) * (tier.duration_months or 0)
+    
 
 @router.post("/optimize", response_model=OptimizeResponse)
 def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
@@ -55,7 +61,8 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     print("=" * 60)
 
     # 1. 신뢰도 필터
-    query = db.query(Policy).filter(Policy.confidence >= request.min_confidence)
+    # query = db.query(Policy).filter(Policy.confidence >= request.min_confidence)
+    query = db.query(Policy)
 
     # 2. 활성 정책만
     query = query.filter(Policy.is_active == True)
@@ -69,21 +76,24 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
     )
 
     # 4. 미취업 필터 — 미취업자 전용 정책은 미취업자만
-    if not request.profile.is_employed:
+    if request.profile.is_employed:
         query = query.filter(Policy.target_unemployed_only == False)
 
     policies = query.all()
 
+    for p in policies[:3]:
+        print(f"{p.title} - monthly: {p.tiers[0].monthly_benefit if p.tiers else None}, duration: {p.tiers[0].duration_months if p.tiers else None}")
+
     print(f"[필터링 결과] {len(policies)}개 정책 매칭")
 
     # 총 수혜액 계산
-    total = sum(p.total_benefit or 0 for p in policies)
+    total = sum(get_total_benefit(p) for p in policies)
 
     # 타임라인 생성 (수혜기간 있는 정책만)
     timeline = []
     current_date = date.today()
     for p in policies:
-        months = p.benefit_duration_months or 6
+        months = p.tiers[0].duration_months if p.tiers else 6
         start = p.apply_start or current_date
         end = p.apply_end or date(start.year + (start.month + months - 1) // 12, (start.month + months - 1) % 12 + 1, 1)
         timeline.append(TimelineItem(

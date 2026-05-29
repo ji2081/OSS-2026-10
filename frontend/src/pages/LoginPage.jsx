@@ -38,6 +38,9 @@ function LoginPage({ onLogin }) {
   const handleSocialLogin = async (provider) => {
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
     if (authError) setError("소셜 로그인 실패: " + authError.message);
   };
@@ -160,7 +163,7 @@ function LoginPage({ onLogin }) {
             </svg>
             Google
           </button>
-          <button
+          {/* <button
             className="social-btn kakao"
             onClick={() => handleSocialLogin("kakao")}
           >
@@ -171,7 +174,7 @@ function LoginPage({ onLogin }) {
               />
             </svg>
             Kakao
-          </button>
+          </button> */}
           <button
             className="social-btn github"
             onClick={() => handleSocialLogin("github")}

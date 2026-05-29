@@ -66,7 +66,8 @@ function DashboardPage({ userName, onLogout }) {
 
   const handleOptimize = async () => {
     try {
-      const res = await fetch("http://localhost:8000/policies/optimize", {
+      const backendUrl = `http://${window.location.hostname}:8000`;
+      const res = await fetch(`${backendUrl}/policies/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -81,6 +82,7 @@ function DashboardPage({ userName, onLogout }) {
         }),
       });
       const data = await res.json();
+      console.log("백엔드 응답:", data);
 
       // 백엔드 응답 → 프론트 형태로 변환
       const categoryMap = {
@@ -115,7 +117,13 @@ function DashboardPage({ userName, onLogout }) {
         name: p.title,
         category: categoryMap[p.category] || "living",
         type: typeMap[p.benefit_type] || "grant",
-        amount: p.total_benefit ? Math.round(p.total_benefit / 10000) : 0,
+        amount:
+          p.tiers && p.tiers.length > 0
+            ? Math.round(
+                (p.tiers[0].monthly_benefit * p.tiers[0].duration_months) /
+                  10000,
+              )
+            : 0,
         startDate: p.apply_start ? p.apply_start.slice(0, 7) : nextMonthStr,
         endDate: p.apply_end ? p.apply_end.slice(0, 7) : `${year}-12`,
         provider: p.host_org || "",

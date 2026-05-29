@@ -44,6 +44,10 @@ export const CATEGORIES = {
   realestate: { key: "realestate", label: "주거", color: "#43A047" },
   employment: { key: "employment", label: "취업·교육", color: "#FB8C00" },
   transport: { key: "transport", label: "교통", color: "#8E24AA" },
+  asset: { key: "asset", label: "자산형성", color: "#007AFF" },
+  culture: { key: "culture", label: "문화", color: "#FF375F" },
+  health: { key: "health", label: "건강", color: "#00BCD4" },
+  welfare: { key: "welfare", label: "복지", color: "#5AC8FA" },
 };
 
 export function checkEligibility(policy, condition) {
