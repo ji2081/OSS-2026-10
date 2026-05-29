@@ -37,18 +37,4 @@ class PolicyResponse(BaseModel):
     super_region: str
     sub_region: Optional[str] = None
     age_min: Optional[int] = None
-    age_max: Optional[int] = None
-    income_standard: Optional[float] = None
-    income_limit: Optional[int] = None
-    total_benefit: Optional[int] = None
-    benefit_duration_months: Optional[int] = None
-    benefit_description: Optional[str] = None
-    apply_start: Optional[date] = None
-    apply_end: Optional[date] = None
-    is_active: bool = True
-    target_unemployed_only: bool = False
-    exclusive_with: List[str] = Field(default_factory=list)
-    source_url: Optional[str] = None
-    confidence: float = Field(..., ge=0.0, le=1.0, description="AI 추천 신뢰도")
-
-    model_config = ConfigDict(from_attributes=True)
+    ag
