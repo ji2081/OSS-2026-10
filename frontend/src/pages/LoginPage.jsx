@@ -163,6 +163,7 @@ function LoginPage({ onLogin }) {
             </svg>
             Google
           </button>
+<<<<<<< HEAD
           {/* <button
             className="social-btn kakao"
             onClick={() => handleSocialLogin("kakao")}
@@ -175,6 +176,9 @@ function LoginPage({ onLogin }) {
             </svg>
             Kakao
           </button> */}
+=======
+          
+>>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
           <button
             className="social-btn github"
             onClick={() => handleSocialLogin("github")}
@@ -217,12 +221,15 @@ function LoginPage({ onLogin }) {
               <p className="login-subtitle">이메일로 가입하세요</p>
             </div>
             {signupSuccess ? (
-              <div className="signup-success">
-                <div className="success-icon">✅</div>
-                <p>회원가입이 완료되었습니다!</p>
-                <span>로그인 화면으로 이동합니다...</span>
-              </div>
-            ) : (
+  <div className="signup-success">
+    <div className="success-icon">✅</div>
+    <p>회원가입이 완료되었습니다!</p>
+    <span>입력하신 이메일로 인증 메일이 발송되었습니다.</span>
+    <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#999' }}>
+      메일함에서 "Confirm your mail"을 클릭한 후 로그인해주세요.
+    </span>
+  </div>
+) : (
               <form onSubmit={handleSignup} className="login-form">
                 <div className="input-group">
                   <label htmlFor="signupEmail">이메일</label>
