@@ -38,13 +38,13 @@ function DashboardPage({ userName, onLogout }) {
   const activeCondition =
     conditionSets.find((s) => s.id === activeSetId) || conditionSets[0];
 
-  const addConditionSet = () => {
-    if (conditionSets.length >= 4) return;
-    const newSet = { id: nextId, ...defaultCondition };
-    setConditionSets([...conditionSets, newSet]);
-    setActiveSetId(nextId);
-    setNextId(nextId + 1);
-  };
+const addConditionSet = () => {
+  if (conditionSets.length >= 4) return;
+  const newSet = { id: nextId, name: '', ...defaultCondition };
+  setConditionSets([...conditionSets, newSet]);
+  setActiveSetId(nextId);
+  setNextId(nextId + 1);
+};
   const removeConditionSet = (id) => {
     if (conditionSets.length <= 1) return;
     const filtered = conditionSets.filter((s) => s.id !== id);
@@ -59,6 +59,9 @@ function DashboardPage({ userName, onLogout }) {
     );
   };
 
+  const renameConditionSet = (id, newName) => {
+  setConditionSets(conditionSets.map(s => s.id === id ? { ...s, name: newName } : s));
+};
   const [selectedSubsidies, setSelectedSubsidies] = useState({});
   const [filteredSubsidies, setFilteredSubsidies] = useState([]);
   const [hasOptimized, setHasOptimized] = useState(false);
@@ -300,6 +303,7 @@ function DashboardPage({ userName, onLogout }) {
             onSetChange={setActiveSetId}
             onAddSet={addConditionSet}
             onRemoveSet={removeConditionSet}
+            onRenameSet={renameConditionSet}
             condition={activeCondition}
             onUpdateCondition={updateCondition}
             onOptimize={handleOptimize}

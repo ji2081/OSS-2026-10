@@ -160,18 +160,7 @@ function LoginPage({ onLogin }) {
             </svg>
             Google
           </button>
-          <button
-            className="social-btn kakao"
-            onClick={() => handleSocialLogin("kakao")}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path
-                d="M12 3C6.48 3 2 6.36 2 10.5c0 2.67 1.74 5.01 4.36 6.37-.15.54-.96 3.47-.99 3.69 0 0-.02.16.08.22.1.06.22.01.22.01.29-.04 3.37-2.21 3.9-2.58.78.12 1.59.18 2.43.18 5.52 0 10-3.36 10-7.5S17.52 3 12 3z"
-                fill="#3C1E1E"
-              />
-            </svg>
-            Kakao
-          </button>
+          
           <button
             className="social-btn github"
             onClick={() => handleSocialLogin("github")}
@@ -214,12 +203,15 @@ function LoginPage({ onLogin }) {
               <p className="login-subtitle">이메일로 가입하세요</p>
             </div>
             {signupSuccess ? (
-              <div className="signup-success">
-                <div className="success-icon">✅</div>
-                <p>회원가입이 완료되었습니다!</p>
-                <span>로그인 화면으로 이동합니다...</span>
-              </div>
-            ) : (
+  <div className="signup-success">
+    <div className="success-icon">✅</div>
+    <p>회원가입이 완료되었습니다!</p>
+    <span>입력하신 이메일로 인증 메일이 발송되었습니다.</span>
+    <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#999' }}>
+      메일함에서 "Confirm your mail"을 클릭한 후 로그인해주세요.
+    </span>
+  </div>
+) : (
               <form onSubmit={handleSignup} className="login-form">
                 <div className="input-group">
                   <label htmlFor="signupEmail">이메일</label>
