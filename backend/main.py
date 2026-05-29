@@ -1,21 +1,20 @@
 from dotenv import load_dotenv
+load_dotenv(dotenv_path="../.env")
+
 from fastapi import FastAPI
 from sqlalchemy import text
-from routers.policy_router import router as policy_router
-from routers.user_router import router as user_router
-from database import engine
 from fastapi.middleware.cors import CORSMiddleware
 
-# 환경 변수 로드
-load_dotenv(dotenv_path="../.env")
+from routers.policy_router import router as policy_router
+from routers.user_router import router as user_router
+from routers.result_router import router as result_router
+from database import engine
 
 app = FastAPI(
     title="청년 정책 맞춤형 추천 API",
     description="청년을 위한 최적화된 정책 추천 서비스 (OSS-2026-10)",
     version="0.1.0"
 )
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,3 +43,4 @@ def read_root():
 
 app.include_router(policy_router)
 app.include_router(user_router)
+app.include_router(result_router)
