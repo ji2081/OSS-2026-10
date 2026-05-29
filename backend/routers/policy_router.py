@@ -1,13 +1,18 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
-from datetime import date, timedelta
+from datetime import date
 from uuid import UUID
+import time
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory
 from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
 from database import get_db
 from models.policy import Policy
+from models.user_profile import UserProfile
+from models.optimization_result import OptimizationResult
+from models.result_policy import ResultPolicy
+from dependencies.auth import get_current_user
 
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_c_2_preprocess import PreprocessSolver
@@ -49,9 +54,17 @@ def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/optimize", response_model=OptimizeResponse)
-def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
+def optimize_policies(
+    request: OptimizeRequest,
+    db: Session = Depends(get_db),
+    current_user_id: UUID = Depends(get_current_user)
+):
     age = request.profile.age
     income_level = request.profile.income_level
+
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="프로필을 먼저 등록해 주세요.")
 
     base_query = (
         db.query(Policy)
@@ -77,10 +90,12 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
             timeline=[],
         )
 
-    adjacency_list, weights = build_graph(mwis_candidates, income_level=request.profile.income_level)
+    adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
 
+    start_time = time.time()
     solver = PreprocessSolver()
     result = solver.solve(adjacency_list, weights)
+    exec_ms = int((time.time() - start_time) * 1000)
 
     selected_set = frozenset(result.selected_ids)
     optimized_policies = [p for p in mwis_candidates if p.id in selected_set]
@@ -115,6 +130,27 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
             start_date=start,
             end_date=end,
         ))
+
+    opt_result = OptimizationResult(
+        user_profile_id=profile.id,
+        total_benefit=result.total_benefit,
+        policy_count=len(optimized_policies),
+        algorithm="stage_c_2_preprocess",
+        exec_ms=exec_ms,
+    )
+    db.add(opt_result)
+    db.flush()
+
+    for i, (p, t) in enumerate(zip(optimized_policies, timeline)):
+        db.add(ResultPolicy(
+            result_id=opt_result.id,
+            policy_id=p.id,
+            seq_order=i,
+            start_date=t.start_date,
+            end_date=t.end_date,
+        ))
+
+    db.commit()
 
     return OptimizeResponse(
         total_benefit=result.total_benefit,
