@@ -31,20 +31,20 @@ function DashboardPage({ userName, onLogout }) {
   const [currentPage, setCurrentPage] = useState("dashboard");
 
   const [conditionSets, setConditionSets] = useState([
-    { id: 1, name: "조건 1", ...defaultCondition },
+    { id: 1, name: "", ...defaultCondition },
   ]);
   const [activeSetId, setActiveSetId] = useState(1);
   const [nextId, setNextId] = useState(2);
   const activeCondition =
     conditionSets.find((s) => s.id === activeSetId) || conditionSets[0];
 
-const addConditionSet = () => {
-  if (conditionSets.length >= 4) return;
-  const newSet = { id: nextId, name: '', ...defaultCondition };
-  setConditionSets([...conditionSets, newSet]);
-  setActiveSetId(nextId);
-  setNextId(nextId + 1);
-};
+  const addConditionSet = () => {
+    if (conditionSets.length >= 4) return;
+    const newSet = { id: nextId, name: "", ...defaultCondition };
+    setConditionSets([...conditionSets, newSet]);
+    setActiveSetId(nextId);
+    setNextId(nextId + 1);
+  };
   const removeConditionSet = (id) => {
     if (conditionSets.length <= 1) return;
     const filtered = conditionSets.filter((s) => s.id !== id);
@@ -58,10 +58,12 @@ const addConditionSet = () => {
       ),
     );
   };
-
   const renameConditionSet = (id, newName) => {
-  setConditionSets(conditionSets.map(s => s.id === id ? { ...s, name: newName } : s));
-};
+    setConditionSets(
+      conditionSets.map((s) => (s.id === id ? { ...s, name: newName } : s)),
+    );
+  };
+
   const [selectedSubsidies, setSelectedSubsidies] = useState({});
   const [filteredSubsidies, setFilteredSubsidies] = useState([]);
   const [hasOptimized, setHasOptimized] = useState(false);
@@ -72,13 +74,21 @@ const addConditionSet = () => {
       const backendUrl = `http://${window.location.hostname}:8000`;
       const res = await fetch(`${backendUrl}/policies/optimize`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
         body: JSON.stringify({
           profile: {
             age: activeCondition.age,
-            income_level: activeCondition.isBelow150Median ? 100 : 200, // income → income_level
-            is_employed: activeCondition.isEmployed, // is_unemployed → is_employed
-            region: "서울특별시", // super_region → region
+            income_level:
+              activeCondition.annualIncome === 0
+                ? 0
+                : activeCondition.isBelow150Median
+                  ? 1
+                  : 2,
+            is_employed: activeCondition.isEmployed,
+            region: "서울",
             sub_region: activeCondition.district,
           },
           min_confidence: 0.5,
@@ -87,7 +97,6 @@ const addConditionSet = () => {
       const data = await res.json();
       console.log("백엔드 응답:", data);
 
-      // 백엔드 응답 → 프론트 형태로 변환
       const categoryMap = {
         housing: "realestate",
         finance: "asset",
@@ -100,14 +109,22 @@ const addConditionSet = () => {
       };
       const typeMap = {
         subsidy: "grant",
+        interest_subsidy: "grant",
         loan: "loan",
         savings: "savings",
-        voucher: "grant",
-        interest_subsidy: "grant",
-        goods: "grant",
-        cashback: "grant",
-        pass: "grant",
-        other: "grant",
+        voucher: "voucher",
+        goods: "service",
+        cashback: "service",
+        pass: "service",
+        other: "service",
+      };
+      const benefitCatMap = {
+        employment: "employment",
+        realestate: "welfare",
+        living: "welfare",
+        transport: "welfare",
+        asset: "welfare",
+        culture: "culture",
       };
 
       const now = new Date();
@@ -115,7 +132,7 @@ const addConditionSet = () => {
       const nextMonth = now.getMonth() + 2;
       const nextMonthStr = `${nextMonth > 12 ? year + 1 : year}-${String(nextMonth > 12 ? 1 : nextMonth).padStart(2, "0")}`;
 
-      const converted = data.selected_policies.map((p) => ({
+      const mapPolicy = (p) => ({
         id: p.id,
         name: p.title,
         category: categoryMap[p.category] || "living",
@@ -130,30 +147,17 @@ const addConditionSet = () => {
         startDate: p.apply_start ? p.apply_start.slice(0, 7) : nextMonthStr,
         endDate: p.apply_end ? p.apply_end.slice(0, 7) : `${year}-12`,
         provider: p.host_org || "",
-        isDuplicate: p.exclusive_with.length > 0,
+        isDuplicate: (p.exclusive_with || []).length > 0,
         duplicateGroup: null,
-        duplicateWith: p.exclusive_with,
+        duplicateWith: p.exclusive_with || [],
         warning: p.target_unemployed_only ? "미취업자" : null,
         description: p.benefit_description || "",
         documents: [],
         applyUrl: p.source_url,
         deadline: p.apply_end,
-      }));
+      });
 
-      const mainPolicies = converted.filter((p) => p.amount && p.amount > 0);
-      const nullAmountPolicies = converted.filter(
-        (p) => !p.amount || p.amount === 0,
-      );
-      const benefitCatMap = {
-        employment: "employment",
-        realestate: "welfare",
-        living: "welfare",
-        transport: "welfare",
-        asset: "welfare",
-        culture: "culture",
-      };
-
-      const nullAsBenefits = nullAmountPolicies.map((p) => ({
+      const toBenefit = (p) => ({
         id: p.id,
         name: p.name,
         category: benefitCatMap[p.category] || "welfare",
@@ -171,26 +175,55 @@ const addConditionSet = () => {
         isOneTime: false,
         isRecurring: false,
         howToApply: "해당 기관 홈페이지 또는 방문 신청",
-      }));
-      setExtraBenefits(nullAsBenefits);
-      setFilteredSubsidies(mainPolicies);
+      });
 
-      // 1. 모든 정책을 기본적으로 선택 상태로 만듦
+      const converted = data.selected_policies.map(mapPolicy);
+      const supplementaryConverted = (data.supplementary_policies || []).map(
+        mapPolicy,
+      );
+
+      // amount 있는 것 → 대시보드, 없는 것 → 알짜배기
+      const mainPolicies = converted.filter(
+        (p) => p.type === "grant" || p.type === "loan" || p.type === "savings",
+      );
+      const nullAsBenefits = converted
+        .filter((p) => p.type === "voucher" || p.type === "service")
+        .map(toBenefit);
+
+      const suppMain = supplementaryConverted.filter(
+        (p) => p.type === "grant" || p.type === "loan" || p.type === "savings",
+      );
+      const suppBenefits = supplementaryConverted
+        .filter((p) => p.type === "voucher" || p.type === "service")
+        .map(toBenefit);
+
+      setFilteredSubsidies([...mainPolicies, ...suppMain]);
+      setExtraBenefits([...nullAsBenefits, ...suppBenefits]);
+
       const newSelections = {};
-      mainPolicies
-        .filter((s) => s.type === "grant")
+      mainPolicies.forEach((s) => {
+        newSelections[s.id] = true;
+      });
+
+      const allPolicies = [...mainPolicies, ...suppMain];
+      allPolicies
+        .filter((s) => s.type === "grant" && s.amount && s.amount > 0)
         .forEach((s) => {
-          newSelections[s.id] = true;
+          const hasConflictSelected = (s.duplicateWith || []).some((id) => {
+            const conflictPolicy = allPolicies.find((p) => p.id === id);
+            return newSelections[id] && conflictPolicy?.type === "grant";
+          });
+          if (!hasConflictSelected) {
+            newSelections[s.id] = true;
+          }
         });
 
       setSelectedSubsidies(newSelections);
       setHasOptimized(true);
 
-      // 2. (선택사항) 백엔드의 전체 금액을 쓰고 싶다면 console로 확인해봐
       console.log("백엔드 추천 총액:", data.total_benefit);
     } catch (err) {
       console.error("API 에러:", err);
-      // 실패 시 더미 데이터로 폴백
       const eligible = MOCK_SUBSIDIES.filter((s) =>
         checkEligibility(s, activeCondition),
       );
@@ -214,36 +247,53 @@ const addConditionSet = () => {
   };
 
   const toggleSubsidy = (subsidyId) => {
-    // 1. MOCK 데이터가 아니라 백엔드에서 받아온 '진짜 데이터'에서 찾습니다.
     const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
 
-    // 2. 만약 정책을 찾았고, 중복 제한 그룹(duplicateGroup)이 있는 경우
-    if (subsidy && subsidy.duplicateGroup) {
-      const group = DUPLICATE_GROUPS.find(
-        (g) => g.id === subsidy.duplicateGroup,
-      );
-
-      if (group) {
-        setSelectedSubsidies((prev) => {
-          const next = { ...prev };
-          // 같은 그룹에 속한 다른 정책들은 모두 체크 해제(false)
-          group.items.forEach((id) => {
-            next[id] = false;
-          });
-          // 현재 클릭한 것만 반전
-          next[subsidyId] = !prev[subsidyId];
-          return next;
+    if (subsidy && subsidy.duplicateWith && subsidy.duplicateWith.length > 0) {
+      setSelectedSubsidies((prev) => {
+        const next = { ...prev };
+        subsidy.duplicateWith.forEach((id) => {
+          next[id] = false;
         });
-        return;
-      }
+        next[subsidyId] = !prev[subsidyId];
+        return next;
+      });
+      return;
     }
 
-    // 3. 중복 제한이 없는 일반 정책이거나 데이터를 못 찾았을 때의 기본 동작
     setSelectedSubsidies((prev) => ({
       ...prev,
       [subsidyId]: !prev[subsidyId],
     }));
   };
+
+  const dynamicDupGroups = [];
+  const processed = new Set();
+  filteredSubsidies
+    .filter((s) => s.type === "grant")
+    .forEach((s) => {
+      if (s.duplicateWith?.length > 0 && !processed.has(s.id)) {
+        const conflictingGrants = s.duplicateWith.filter((id) => {
+          const p = filteredSubsidies.find((p) => p.id === id);
+          return p && p.type === "grant";
+        });
+        if (conflictingGrants.length > 0) {
+          const group = [s.id, ...conflictingGrants];
+          group.forEach((id) => processed.add(id));
+          const conflictNames = conflictingGrants
+            .map((id) => filteredSubsidies.find((p) => p.id === id)?.name)
+            .filter(Boolean)
+            .join(", ");
+          dynamicDupGroups.push({
+            id: s.id,
+            name: "중복 제한",
+            items: group,
+            recommendedId: s.id,
+            reason: `${conflictNames}과(와) 동시에 수혜 불가합니다.`,
+          });
+        }
+      }
+    });
   const grants = filteredSubsidies.filter((s) => s.type === "grant");
   const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
   const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
@@ -302,7 +352,6 @@ const addConditionSet = () => {
         </div>
       </header>
 
-      {/* 대시보드 */}
       {currentPage === "dashboard" && (
         <div className="dashboard-body">
           <Sidebar
@@ -353,7 +402,7 @@ const addConditionSet = () => {
                 selectedSubsidies={selectedSubsidies}
                 onToggle={toggleSubsidy}
                 categories={CATEGORIES}
-                duplicateGroups={DUPLICATE_GROUPS}
+                duplicateGroups={dynamicDupGroups}
               />
             ) : (
               <div className="empty-state">
@@ -369,7 +418,6 @@ const addConditionSet = () => {
         </div>
       )}
 
-      {/* 수혜 로드맵 */}
       {currentPage === "roadmap" && (
         <div className="subpage-wrap">
           <RoadmapPage
@@ -380,7 +428,6 @@ const addConditionSet = () => {
         </div>
       )}
 
-      {/* 알짜배기 정보 */}
       {currentPage === "benefits" && (
         <div className="subpage-wrap">
           <BenefitsPage

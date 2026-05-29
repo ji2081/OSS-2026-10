@@ -60,38 +60,30 @@ def get_total_benefit(policy):
     
 
 @router.post("/optimize", response_model=OptimizeResponse)
-<<<<<<< HEAD
-def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
-    print("=" * 60)
-    print("[POST /optimize] 요청 수신")
-    print(f"나이: {request.profile.age}")
-    print(f"소득: {request.profile.income_level}")
-    print(f"미취업 여부: {request.profile.is_employed}")
-    print(f"지역: {request.profile.region} / {request.profile.sub_region}")
-    print(f"최소 신뢰도: {request.min_confidence}")
-    print("=" * 60)
-
-    # 1. 신뢰도 필터
-    # query = db.query(Policy).filter(Policy.confidence >= request.min_confidence)
-    query = db.query(Policy)
-
-    # 2. 활성 정책만
-    query = query.filter(Policy.is_active == True)
-
-    # 3. 나이 필터
-=======
 def optimize_policies(
     request: OptimizeRequest,
     db: Session = Depends(get_db),
     current_user_id: UUID = Depends(get_current_user)
 ):
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
     age = request.profile.age
     income_level = request.profile.income_level
 
+    # profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
+    # if not profile:
+    #     raise HTTPException(status_code=404, detail="프로필을 먼저 등록해 주세요.")
+
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="프로필을 먼저 등록해 주세요.")
+        profile = UserProfile(
+            user_id=current_user_id,
+            age=request.profile.age,
+            income_level=request.profile.income_level,
+            region=request.profile.region,
+            sub_region=request.profile.sub_region,
+            is_employed=request.profile.is_employed,
+        )
+        db.add(profile)
+        db.flush()
 
     base_query = (
         db.query(Policy)
@@ -101,26 +93,24 @@ def optimize_policies(
         .filter((Policy.age_max == None) | (Policy.age_max >= age))
     )
 
-<<<<<<< HEAD
-    # 4. 미취업 필터 — 미취업자 전용 정책은 미취업자만
-    if request.profile.is_employed:
-        query = query.filter(Policy.target_unemployed_only == False)
-=======
     if request.profile.is_employed:
         base_query = base_query.filter(Policy.target_unemployed_only == False)
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
+
+    # if income_level is not None:
+    #     base_query = base_query.filter(
+    #         (Policy.income_limit == None) | (Policy.income_limit >= income_level)
+    #     )
+
+    if request.profile.region:
+        base_query = base_query.filter(
+            (Policy.super_region == None) |
+            (Policy.super_region == "전국") |
+            (Policy.super_region == request.profile.region)
+        )
 
     all_policies = base_query.all()
+    print(f"[필터링 결과] {len(all_policies)}개 정책 매칭")
 
-<<<<<<< HEAD
-    for p in policies[:3]:
-        print(f"{p.title} - monthly: {p.tiers[0].monthly_benefit if p.tiers else None}, duration: {p.tiers[0].duration_months if p.tiers else None}")
-
-    print(f"[필터링 결과] {len(policies)}개 정책 매칭")
-
-    # 총 수혜액 계산
-    total = sum(get_total_benefit(p) for p in policies)
-=======
     mwis_candidates = [p for p in all_policies if not p.is_supplementary]
     supplementary = [p for p in all_policies if p.is_supplementary]
 
@@ -141,16 +131,11 @@ def optimize_policies(
 
     selected_set = frozenset(result.selected_ids)
     optimized_policies = [p for p in mwis_candidates if p.id in selected_set]
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
+    unselected_policies = [p for p in mwis_candidates if p.id not in selected_set]
 
     timeline = []
     current_date = date.today()
-<<<<<<< HEAD
-    for p in policies:
-        months = p.tiers[0].duration_months if p.tiers else 6
-=======
     for p in optimized_policies:
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
         start = p.apply_start or current_date
 
         applicable_tier = None
@@ -201,8 +186,8 @@ def optimize_policies(
     db.commit()
 
     return OptimizeResponse(
-        total_benefit=result.total_benefit,
-        selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
-        supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary],
-        timeline=timeline,
-    )
+    total_benefit=result.total_benefit,
+    selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
+    supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary + unselected_policies],
+    timeline=timeline,
+)

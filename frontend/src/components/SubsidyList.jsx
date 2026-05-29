@@ -84,6 +84,7 @@ function SubsidyList({
 
   // 정책 카드
   function PolicyCard({ subsidy, color }) {
+    if (!subsidy.amount || subsidy.amount === 0) return null;
     const isSelected = selectedSubsidies[subsidy.id];
     const isExpanded = expandedId === subsidy.id;
     const isRecommended = duplicateGroups.some(
@@ -166,7 +167,10 @@ function SubsidyList({
 
       {catOrder.map((catKey) => {
         const items = grouped[catKey];
-        if (!items || items.length === 0) return null;
+        const visibleItems = (items || []).filter(
+          (s) => s.amount && s.amount > 0,
+        );
+        if (!visibleItems || visibleItems.length === 0) return null;
         const color = getCategoryColor(catKey);
         const label = getCategoryLabel(catKey);
         const dupGroups = getDupGroupsForCategory(catKey);

@@ -14,30 +14,13 @@ class Policy(Base):
     category = Column(String)
     benefit_type = Column(String)
     host_org = Column(String)
-<<<<<<< HEAD
-    super_region = Column(String)
-=======
 
     super_region = Column(String, nullable=False, index=True)
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65
     sub_region = Column(String)
     age_min = Column(Integer)
     age_max = Column(Integer)
     income_standard = Column(String)
     income_limit = Column(Float)
-<<<<<<< HEAD
-    target_unemployed_only = Column(Boolean, default=False)
-    benefit_description = Column(Text)
-    apply_start = Column(Date)
-    apply_end = Column(Date)
-    exclusive_with = Column(JSONB, default=list)
-    source_url = Column(String)
-    is_active = Column(Boolean, default=True)
-    is_supplementary = Column(Boolean, default=False)
-    updated_at = Column(DateTime)
-
-    tiers = relationship("PolicyTier", backref="policy", lazy="joined")
-=======
     target_unemployed_only = Column(Boolean, default=False, index=True)
 
     benefit_description = Column(Text)
@@ -63,4 +46,3 @@ class PolicyTier(Base):
     duration_months = Column(Integer)
 
     policy = relationship("Policy", back_populates="tiers")
->>>>>>> 63779c2625fa96af55cb5b854ef73a617097dd65

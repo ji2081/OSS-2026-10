@@ -120,7 +120,11 @@ function getMonthOptions(win) {
 // ─────────────────────────────────────────────────────────────────────────────
 function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   const selectedItems = (subsidies || []).filter(
-    (s) => selectedSubsidies?.[s.id],
+    (s) =>
+      selectedSubsidies?.[s.id] &&
+      s.type === "grant" &&
+      s.amount &&
+      s.amount > 0,
   );
 
   const [visibleMonths, setVisibleMonths] = useState(24);
