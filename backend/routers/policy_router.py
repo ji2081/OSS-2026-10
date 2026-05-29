@@ -77,7 +77,7 @@ def optimize_policies(request: OptimizeRequest, db: Session = Depends(get_db)):
             timeline=[],
         )
 
-    adjacency_list, weights = build_graph(mwis_candidates)
+    adjacency_list, weights = build_graph(mwis_candidates, income_level=request.profile.income_level)
 
     solver = PreprocessSolver()
     result = solver.solve(adjacency_list, weights)
