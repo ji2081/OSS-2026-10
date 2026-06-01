@@ -16,5 +16,5 @@ class OptimizationResult(Base):
     exec_ms = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    policies = relationship("Policy", secondary="result_policies", backref="optimization_results", overlaps="policy")
+    # policies = relationship("Policy", secondary="result_policies", backref="optimization_results", overlaps="policy")
     profile = relationship("UserProfile", backref="optimization_results")

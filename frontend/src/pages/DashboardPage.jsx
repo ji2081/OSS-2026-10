@@ -109,7 +109,7 @@ function DashboardPage({ userName, onLogout }) {
       };
       const typeMap = {
         subsidy: "grant",
-        interest_subsidy: "grant",
+        interest_subsidy: "interest",
         loan: "loan",
         savings: "savings",
         voucher: "voucher",
@@ -294,7 +294,10 @@ function DashboardPage({ userName, onLogout }) {
         }
       }
     });
-  const grants = filteredSubsidies.filter((s) => s.type === "grant");
+  const grants = filteredSubsidies.filter(
+    (s) => s.type === "grant" && s.amount && s.amount > 0,
+  );
+  console.log("grants:", grants);
   const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
   const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
   const selectedCount = selectedGrants.length;

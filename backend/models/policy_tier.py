@@ -4,7 +4,7 @@ from database import Base
 import uuid
 
 class PolicyTier(Base):
-    __tablename__ = "policy_tiers"
+    __tablename__ = "policy_tiers2"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id"))

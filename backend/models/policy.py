@@ -7,7 +7,7 @@ import uuid
 
 
 class Policy(Base):
-    __tablename__ = "policies"
+    __tablename__ = "policies2"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String, nullable=False)
@@ -37,10 +37,10 @@ class Policy(Base):
 
 
 class PolicyTier(Base):
-    __tablename__ = "policy_tiers"
+    __tablename__ = "policy_tiers2"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id", ondelete="CASCADE"), nullable=False)
+    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies2.id", ondelete="CASCADE"), nullable=False)
     max_income_ratio = Column(Float)
     monthly_benefit = Column(BigInteger)
     duration_months = Column(Integer)
