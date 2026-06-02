@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApplicationStatus } from '../data/subsidies'
 import "./SubsidyList.css";
 
 function SubsidyList({
@@ -90,6 +91,7 @@ function SubsidyList({
     const isRecommended = duplicateGroups.some(
       (g) => g.recommendedId === subsidy.id,
     );
+    const status = getApplicationStatus(subsidy);
     return (
       <>
         <div
@@ -112,6 +114,7 @@ function SubsidyList({
           <div className="subsidy-info">
             <div className="subsidy-name-row">
               <span className="subsidy-name">{subsidy.name}</span>
+               <span className="status-badge" style={{ color: status.color, background: status.bg, border: status.dashed ? `1px dashed ${status.color}` : 'none' }}>{status.label}</span>
               {isRecommended && subsidy.isDuplicate && (
                 <span className="recommend-badge">추천</span>
               )}
