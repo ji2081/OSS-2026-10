@@ -341,14 +341,14 @@ function BenefitsPage({ condition, dbBenefits = [] }) {
               ))}
             </div>
 
-            {detailItem.period && (
-              <div className="bp-period">
-                <span className="bp-period-label">지원 기간</span>
-                <span>
-                  {detailItem.period.start} ~ {detailItem.period.end}
-                </span>
-              </div>
-            )}
+            <div className="bp-period">
+  <span className="bp-period-label">지원 기간</span>
+  <span>
+    {detailItem.period && detailItem.period.start
+      ? `${detailItem.period.start} ~ ${detailItem.period.end}`
+      : '일정 미정'}
+  </span>
+</div>
 
             <div className="bp-how">
               <span className="bp-how-label">신청 방법</span>
@@ -356,7 +356,7 @@ function BenefitsPage({ condition, dbBenefits = [] }) {
             </div>
 
             <a
-              href={detailItem.applyUrl}
+              href={detailItem.source_url || detailItem.applyUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="bp-apply-btn"
@@ -373,7 +373,12 @@ function BenefitsPage({ condition, dbBenefits = [] }) {
 // ── 카드 컴포넌트 ─────────────────────────────────────────────────────────────
 function BenefitCard({ benefit, onDetail, dimmed }) {
   const catColor = BENEFIT_CATEGORIES[benefit.category]?.color || "#999";
-  const status = getApplicationStatus(benefit);
+ const status = getApplicationStatus({
+  apply_start: benefit.period?.start || benefit.apply_start,
+  apply_end: benefit.period?.end || benefit.apply_end,
+  is_active: benefit.is_active !== false,
+  is_open_ended: benefit.is_open_ended || benefit.isRecurring,
+});
   return (
     <div
       className={`benefit-card${dimmed ? " dimmed" : ""}`}

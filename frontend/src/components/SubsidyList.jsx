@@ -65,11 +65,11 @@ function SubsidyList({
               <span className="detail-value">{subsidy.deadline}</span>
             </div>
           )}
-          {subsidy.applyUrl && (
+          {subsidy.source_url && (
             <div className="detail-section">
               <span className="detail-label">신청</span>
               <a
-                href={subsidy.applyUrl}
+                href={subsidy.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="detail-link"
@@ -115,7 +115,7 @@ function SubsidyList({
             <div className="subsidy-name-row">
               <span className="subsidy-name">{subsidy.name}</span>
                <span className="status-badge" style={{ color: status.color, background: status.bg, border: status.dashed ? `1px dashed ${status.color}` : 'none' }}>{status.label}</span>
-              {isRecommended && subsidy.isDuplicate && (
+              {isRecommended && subsidy.exclusive_with?.length > 0 && (
                 <span className="recommend-badge">추천</span>
               )}
               {subsidy.warning && (
@@ -124,7 +124,8 @@ function SubsidyList({
             </div>
             <div className="subsidy-meta">
               <span>
-                {subsidy.startDate} ~ {subsidy.endDate}
+                {subsidy.apply_start ? subsidy.apply_start : "일정 미정"}
+                {subsidy.apply_end ? ` ~ ${subsidy.apply_end}` : ""}
               </span>
               <span>·</span>
               <span>{subsidy.provider}</span>
@@ -409,12 +410,12 @@ function SubsidyList({
                   <span className="finance-item-desc">{item.description}</span>
                   <span className="finance-item-provider">
                     {item.provider}
-                    {item.applyUrl && (
+                    {item.source_url && (
                       <>
                         {" "}
                         ·{" "}
                         <a
-                          href={item.applyUrl}
+                          href={item.source_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="detail-link"

@@ -93,6 +93,7 @@ const HANDOFFS = [
 
 // ── 날짜 유틸 ────────────────────────────────────────────────────────────────
 function dateToAbs(dateStr) {
+  if (!dateStr) return 0; // 💡 null이나 undefined가 들어오면 앱이 뻗지 않게 방어!
   const [y, m] = dateStr.split("-").map(Number);
   return y * 12 + (m - 1);
 }
@@ -163,24 +164,25 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
 
   // ── 활성 시작월 ────────────────────────────────────────────────────────────
   const getStartMonth = (item) => {
-    const win = APP_WINDOWS[item.id];
-    const fallback = item.startDate || "2025-01";
-    return selStart[item.id] ?? (win?.applyStart || fallback);
-  };
+    if (selStart[item.id]) return selStart[item.id];
+    return item.apply_start || null;
+};
 
   const getDuration = (item) => {
-    if (ONE_TIME_IDS.has(item.id) || item.isOneTime) return 1;
-    if (APP_WINDOWS[item.id]?.duration) return APP_WINDOWS[item.id].duration;
-    if (!item.startDate || !item.endDate) return 12;
-    const s = dateToAbs(item.startDate);
-    const e = dateToAbs(item.endDate);
+    if (item.duration_months) return item.duration_months;
+    if (!item.apply_start || !item.apply_end) return 0;
+    const s = dateToAbs(item.apply_start);
+    const e = dateToAbs(item.apply_end);
     return Math.max(e - s + 1, 1);
-  };
+};
 
   // ── 베이스 = 가장 빠른 시작월 ─────────────────────────────────────────────
-  const baseAbs = Math.min(
-    ...selectedItems.map((s) => dateToAbs(getStartMonth(s))),
-  );
+  // 💡 null인 시작월을 걸러내고(filter) 계산하도록 수정
+  const validStarts = selectedItems.map((s) => getStartMonth(s)).filter(Boolean);
+  const baseAbs = validStarts.length > 0 
+    ? Math.min(...validStarts.map(dateToAbs)) 
+    : dateToAbs("2026-06"); // 💡 선택된 정책이 모두 일정 미정(null)일 경우의 기본값
+
   const monthWidth = chartWidth / visibleMonths;
 
   // ── 분기 헤더 ─────────────────────────────────────────────────────────────
@@ -200,7 +202,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   const getBarProps = (item) => {
     const startMonth = getStartMonth(item);
     if (!startMonth) return { hidden: true };
-    const startAbs = dateToAbs(getStartMonth(item));
+    const startAbs = dateToAbs(startMonth);
     const duration = getDuration(item);
     const endAbs = startAbs + duration;
 
@@ -231,12 +233,14 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
     .filter((s) => s.type === "grant" && s.amount)
     .reduce((sum, s) => sum + s.amount, 0);
 
-  const allStarts = selectedItems.map((s) => dateToAbs(getStartMonth(s)));
-  const allEnds = selectedItems.map(
-    (s) => dateToAbs(getStartMonth(s)) + getDuration(s),
-  );
-  const totalDuration = Math.max(...allEnds) - Math.min(...allStarts);
+  // 💡 날짜가 있는 정책들만 뽑아서 총 수혜 기간을 계산
+  const allEnds = selectedItems
+    .filter((s) => getStartMonth(s))
+    .map((s) => dateToAbs(getStartMonth(s)) + getDuration(s));
 
+  const totalDuration = validStarts.length > 0 && allEnds.length > 0
+    ? Math.max(...allEnds) - Math.min(...validStarts.map(dateToAbs))
+    : 0;
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="roadmap-page">
@@ -274,10 +278,12 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
         </div>
       </div>
 
-      {/* ── 범례 + 기간 슬라이더 ── */}
+     {/* ── 범례 + 기간 슬라이더 ── */}
       <div className="roadmap-controls">
         <div className="roadmap-legend">
-          {Object.entries(ALL_CATEGORIES).map(([key, cat]) => (
+          {Object.entries(ALL_CATEGORIES)
+            .filter(([key, cat], i, arr) => arr.findIndex(([, c]) => c.label === cat.label) === i)
+            .map(([key, cat]) => (
             <div key={key} className="legend-item">
               <span className="legend-dot" style={{ background: cat.color }} />
               <span>{cat.label}</span>
@@ -304,7 +310,6 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
           <span className="period-value">{visibleMonths}개월</span>
         </div>
       </div>
-
       {/* ── 간트차트 ── */}
       <div className="gantt-wrap">
         {/* 왼쪽: 정책명 열 */}
@@ -312,15 +317,15 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
           <div className="gantt-th-left">정책명</div>
           {selectedItems.map((item) => {
             const win = APP_WINDOWS[item.id];
-            const options =
-              win && !win.isAlwaysOpen
-                ? getMonthOptions(win)
-                : item.startDate && item.endDate
-                  ? getMonthOptions({
-                      applyStart: item.startDate,
-                      applyEnd: item.endDate,
-                    })
-                  : [];
+          const options =
+  win && !win.isAlwaysOpen
+    ? getMonthOptions(win)
+    : item.apply_start && item.apply_end
+      ? getMonthOptions({
+          applyStart: item.apply_start,
+          applyEnd: item.apply_end,
+        })
+      : [];
             const curStart = getStartMonth(item);
             const color = ALL_CATEGORIES[item.category]?.color || "#999";
 
@@ -463,19 +468,15 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
       {/* ── 상세 모달 ── */}
       {detailItem &&
         (() => {
-          const win = APP_WINDOWS[detailItem.id];
-          const options =
-            win && !win.isAlwaysOpen
-              ? getMonthOptions(win)
-              : detailItem.startDate && detailItem.endDate
-                ? getMonthOptions({
-                    applyStart: detailItem.startDate,
-                    applyEnd: detailItem.endDate,
-                  })
-                : [];
+          const options = detailItem.apply_start && detailItem.apply_end
+            ? getMonthOptions({ applyStart: detailItem.apply_start, applyEnd: detailItem.apply_end })
+            : [];
+          const isAlwaysOpen = detailItem.is_open_ended || (!detailItem.apply_start && !detailItem.apply_end);
+          
           const curStart = getStartMonth(detailItem);
           const duration = getDuration(detailItem);
           const endAbs = dateToAbs(curStart) + duration - 1;
+          
           return (
             <div className="rm-overlay" onClick={() => setDetailItem(null)}>
               <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
@@ -517,7 +518,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                   <div className="rm-windows">
                     <span className="rm-windows-title">신청 시작월 선택</span>
                     <p className="rm-windows-hint">
-                      신청 가능 기간: {win?.applyStart} ~ {win?.applyEnd}
+                      신청 가능 기간: {detailItem.apply_start} ~ {detailItem.apply_end}
                     </p>
                     <select
                       className="rm-month-select"
@@ -538,12 +539,10 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
                   </div>
                 )}
 
-                {win?.isAlwaysOpen && (
+                {isAlwaysOpen && (
                   <div className="rm-windows">
                     <span className="rm-windows-title">신청 기간</span>
-                    <p className="rm-windows-hint">
-                      상시 신청 가능 ({win?.applyStart} ~ {win?.applyEnd})
-                    </p>
+                    <p className="rm-windows-hint">상시 신청 가능</p>
                   </div>
                 )}
               </div>

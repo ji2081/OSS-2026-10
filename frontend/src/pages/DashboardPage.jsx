@@ -129,8 +129,7 @@ function DashboardPage({ userName, onLogout }) {
 
       const now = new Date();
       const year = now.getFullYear();
-      const nextMonth = now.getMonth() + 2;
-      const nextMonthStr = `${nextMonth > 12 ? year + 1 : year}-${String(nextMonth > 12 ? 1 : nextMonth).padStart(2, "0")}`;
+   
 
       const mapPolicy = (p) => ({
         id: p.id,
@@ -144,8 +143,8 @@ function DashboardPage({ userName, onLogout }) {
                   10000,
               )
             : 0,
-        startDate: p.apply_start ? p.apply_start.slice(0, 7) : nextMonthStr,
-        endDate: p.apply_end ? p.apply_end.slice(0, 7) : `${year}-12`,
+        apply_start: p.apply_start || null,
+apply_end: p.apply_end || null,
         provider: p.host_org || "",
         isDuplicate: (p.exclusive_with || []).length > 0,
         duplicateGroup: null,
@@ -170,7 +169,7 @@ function DashboardPage({ userName, onLogout }) {
         description: p.description,
         applyUrl: p.applyUrl,
         tags: [],
-        period: p.startDate ? { start: p.startDate, end: p.endDate } : null,
+        period: p.apply_start ? { start: p.apply_start, end: p.apply_end } : null,
         eligibility: {},
         isOneTime: false,
         isRecurring: false,
@@ -209,7 +208,7 @@ function DashboardPage({ userName, onLogout }) {
       allPolicies
         .filter((s) => s.type === "grant" && s.amount && s.amount > 0)
         .forEach((s) => {
-          const hasConflictSelected = (s.duplicateWith || []).some((id) => {
+          const hasConflictSelected = (s.exclusive_with || []).some((id) => {
             const conflictPolicy = allPolicies.find((p) => p.id === id);
             return newSelections[id] && conflictPolicy?.type === "grant";
           });
@@ -249,16 +248,16 @@ function DashboardPage({ userName, onLogout }) {
   const toggleSubsidy = (subsidyId) => {
     const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
 
-    if (subsidy && subsidy.duplicateWith && subsidy.duplicateWith.length > 0) {
+    if (subsidy && subsidy.exclusive_with && subsidy.exclusive_with.length > 0) {
       setSelectedSubsidies((prev) => {
-        const next = { ...prev };
-        subsidy.duplicateWith.forEach((id) => {
-          next[id] = false;
+const next = { ...prev };
+subsidy.exclusive_with.forEach((id) => {
+next[id] = false;
         });
-        next[subsidyId] = !prev[subsidyId];
-        return next;
+next[subsidyId] = !prev[subsidyId];
+return next;
       });
-      return;
+return;
     }
 
     setSelectedSubsidies((prev) => ({
@@ -272,8 +271,8 @@ function DashboardPage({ userName, onLogout }) {
   filteredSubsidies
     .filter((s) => s.type === "grant")
     .forEach((s) => {
-      if (s.duplicateWith?.length > 0 && !processed.has(s.id)) {
-        const conflictingGrants = s.duplicateWith.filter((id) => {
+      if (s.exclusive_with?.length > 0 && !processed.has(s.id)) {
+    const conflictingGrants = s.exclusive_with.filter((id) => {
           const p = filteredSubsidies.find((p) => p.id === id);
           return p && p.type === "grant";
         });
