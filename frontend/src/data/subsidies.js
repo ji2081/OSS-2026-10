@@ -528,3 +528,19 @@ export function mapPolicyToBenefit(policy) {
     howToApply: "해당 기관 홈페이지 또는 방문 신청",
   };
 }
+export function getApplicationStatus(policy) {
+  const today = new Date();
+  const start = policy.apply_start ? new Date(policy.apply_start) : null;
+  const end = policy.apply_end ? new Date(policy.apply_end) : null;
+
+  if (policy.is_active === false) return { label: '종료', color: '#999', bg: '#F0F0F0' };
+  if (policy.is_open_ended) return { label: '상시', color: '#2196F3', bg: '#E3F2FD' };
+  if (!start && !end) return { label: '상시', color: '#2196F3', bg: '#E3F2FD' };
+  if (start && start > today) return { label: '예정', color: '#FF9800', bg: '#FFF3E0', dashed: true };
+  if (start && end && start <= today && end >= today) {
+    const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 7) return { label: '마감임박', color: '#F44336', bg: '#FFEBEE' };
+    return { label: '모집중', color: '#4CAF50', bg: '#E8F5E9' };
+  }
+  return { label: '종료', color: '#999', bg: '#F0F0F0' };
+}

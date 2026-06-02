@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import "./BenefitsPage.css";
+import { getApplicationStatus } from '../data/subsidies'
 
 // ── 카테고리 정의 ─────────────────────────────────────────────────────────────
 export const BENEFIT_CATEGORIES = {
@@ -372,6 +373,7 @@ function BenefitsPage({ condition, dbBenefits = [] }) {
 // ── 카드 컴포넌트 ─────────────────────────────────────────────────────────────
 function BenefitCard({ benefit, onDetail, dimmed }) {
   const catColor = BENEFIT_CATEGORIES[benefit.category]?.color || "#999";
+  const status = getApplicationStatus(benefit);
   return (
     <div
       className={`benefit-card${dimmed ? " dimmed" : ""}`}
@@ -384,6 +386,7 @@ function BenefitCard({ benefit, onDetail, dimmed }) {
         >
           {benefit.typeLabel}
         </span>
+         <span className="status-badge" style={{ color: status.color, background: status.bg, border: status.dashed ? `1px dashed ${status.color}` : 'none' }}>{status.label}</span>
         {benefit.isOneTime && <span className="bc-badge onetime">1회성</span>}
         {benefit.isRecurring && (
           <span className="bc-badge recurring">반복</span>
