@@ -29,7 +29,6 @@ function DashboardPage({ userName, onLogout }) {
   };
 
   const [currentPage, setCurrentPage] = useState("dashboard");
-
   const [conditionSets, setConditionSets] = useState([
     { id: 1, name: "", ...defaultCondition },
   ]);
@@ -68,6 +67,7 @@ function DashboardPage({ userName, onLogout }) {
   const [filteredSubsidies, setFilteredSubsidies] = useState([]);
   const [hasOptimized, setHasOptimized] = useState(false);
   const [extraBenefits, setExtraBenefits] = useState([]);
+  const [recommendedSelections, setRecommendedSelections] = useState({});
 
   const handleOptimize = async () => {
     try {
@@ -98,33 +98,37 @@ function DashboardPage({ userName, onLogout }) {
       console.log("백엔드 응답:", data);
 
       const categoryMap = {
-        housing: "realestate",
-        finance: "asset",
-        employment: "employment",
-        education: "employment",
-        health: "living",
         culture: "culture",
-        welfare: "living",
+        education: "education",
+        employment: "employment",
+        finance: "finance",
+        health: "health",
+        housing: "housing",
+        military: "military",
+        welfare: "health",
         startup: "employment",
       };
+
       const typeMap = {
-        subsidy: "grant",
-        interest_subsidy: "interest",
-        loan: "loan",
-        savings: "savings",
-        voucher: "voucher",
-        goods: "service",
-        cashback: "service",
-        pass: "service",
-        other: "service",
+        subsidy: "confirmed",
+        interest_subsidy: "confirmed",
+        savings: "confirmed",
+        voucher: "utilization",
+        cashback: "utilization",
+        pass: "utilization",
+        goods: "selective",
+        loan: "selective",
+        other: "selective",
       };
+
       const benefitCatMap = {
-        employment: "employment",
-        realestate: "welfare",
-        living: "welfare",
-        transport: "welfare",
-        asset: "welfare",
         culture: "culture",
+        education: "employment",
+        employment: "employment",
+        finance: "welfare",
+        health: "welfare",
+        housing: "welfare",
+        military: "welfare",
       };
 
       const now = new Date();
@@ -135,8 +139,9 @@ function DashboardPage({ userName, onLogout }) {
       const mapPolicy = (p) => ({
         id: p.id,
         name: p.title,
-        category: categoryMap[p.category] || "living",
-        type: typeMap[p.benefit_type] || "grant",
+        category: categoryMap[p.category] || "employment",
+        type: typeMap[p.benefit_type] || "selective",
+        benefit_type: p.benefit_type,
         amount:
           p.tiers && p.tiers.length > 0
             ? Math.round(
@@ -163,7 +168,11 @@ function DashboardPage({ userName, onLogout }) {
         category: benefitCatMap[p.category] || "welfare",
         type: p.type,
         typeLabel:
-          p.type === "loan" ? "대출" : p.type === "savings" ? "적금" : "서비스",
+          p.benefit_type === "loan"
+            ? "대출"
+            : p.benefit_type === "goods"
+              ? "물품"
+              : "서비스",
         amount: null,
         amountLabel: "별도 안내",
         provider: p.provider,
@@ -182,36 +191,55 @@ function DashboardPage({ userName, onLogout }) {
         mapPolicy,
       );
 
-      // amount 있는 것 → 대시보드, 없는 것 → 알짜배기
+      // confirmed + utilization → 대시보드 체크리스트
+      // selective → 알짜배기
       const mainPolicies = converted.filter(
-        (p) => p.type === "grant" || p.type === "loan" || p.type === "savings",
+        (p) =>
+          (p.type === "confirmed" || p.type === "utilization") &&
+          p.amount &&
+          p.amount > 0,
       );
       const nullAsBenefits = converted
-        .filter((p) => p.type === "voucher" || p.type === "service")
+        .filter((p) => p.type === "selective")
         .map(toBenefit);
 
       const suppMain = supplementaryConverted.filter(
-        (p) => p.type === "grant" || p.type === "loan" || p.type === "savings",
+        (p) =>
+          (p.type === "confirmed" || p.type === "utilization") &&
+          p.amount &&
+          p.amount > 0,
       );
       const suppBenefits = supplementaryConverted
-        .filter((p) => p.type === "voucher" || p.type === "service")
+        .filter((p) => p.type === "selective")
         .map(toBenefit);
 
       setFilteredSubsidies([...mainPolicies, ...suppMain]);
       setExtraBenefits([...nullAsBenefits, ...suppBenefits]);
 
+      const allPolicies = [...mainPolicies, ...suppMain];
       const newSelections = {};
+
+      // MWIS 선택 정책 기본 선택
       mainPolicies.forEach((s) => {
         newSelections[s.id] = true;
       });
 
-      const allPolicies = [...mainPolicies, ...suppMain];
+      suppMain.forEach((s) => {
+        const hasConflict = (s.duplicateWith || []).some(
+          (id) => newSelections[id],
+        );
+        if (!hasConflict) {
+          newSelections[s.id] = true;
+        }
+      });
+
+      // confirmed 타입 충돌 처리 (confirmed끼리만)
       allPolicies
-        .filter((s) => s.type === "grant" && s.amount && s.amount > 0)
+        .filter((s) => s.type === "confirmed" && s.amount && s.amount > 0)
         .forEach((s) => {
           const hasConflictSelected = (s.duplicateWith || []).some((id) => {
             const conflictPolicy = allPolicies.find((p) => p.id === id);
-            return newSelections[id] && conflictPolicy?.type === "grant";
+            return newSelections[id] && conflictPolicy?.type === "confirmed";
           });
           if (!hasConflictSelected) {
             newSelections[s.id] = true;
@@ -219,6 +247,7 @@ function DashboardPage({ userName, onLogout }) {
         });
 
       setSelectedSubsidies(newSelections);
+      setRecommendedSelections({ ...newSelections });
       setHasOptimized(true);
 
       console.log("백엔드 추천 총액:", data.total_benefit);
@@ -267,20 +296,21 @@ function DashboardPage({ userName, onLogout }) {
     }));
   };
 
+  // 충돌 그룹 생성 (confirmed 타입끼리만)
   const dynamicDupGroups = [];
   const processed = new Set();
   filteredSubsidies
-    .filter((s) => s.type === "grant")
+    .filter((s) => s.type === "confirmed")
     .forEach((s) => {
       if (s.duplicateWith?.length > 0 && !processed.has(s.id)) {
-        const conflictingGrants = s.duplicateWith.filter((id) => {
+        const conflictingConfirmed = s.duplicateWith.filter((id) => {
           const p = filteredSubsidies.find((p) => p.id === id);
-          return p && p.type === "grant";
+          return p && p.type === "confirmed";
         });
-        if (conflictingGrants.length > 0) {
-          const group = [s.id, ...conflictingGrants];
+        if (conflictingConfirmed.length > 0) {
+          const group = [s.id, ...conflictingConfirmed];
           group.forEach((id) => processed.add(id));
-          const conflictNames = conflictingGrants
+          const conflictNames = conflictingConfirmed
             .map((id) => filteredSubsidies.find((p) => p.id === id)?.name)
             .filter(Boolean)
             .join(", ");
@@ -294,13 +324,35 @@ function DashboardPage({ userName, onLogout }) {
         }
       }
     });
-  const grants = filteredSubsidies.filter(
-    (s) => s.type === "grant" && s.amount && s.amount > 0,
+
+  const confirmedPolicies = filteredSubsidies.filter(
+    (s) => s.type === "confirmed",
   );
-  console.log("grants:", grants);
-  const selectedGrants = grants.filter((s) => selectedSubsidies[s.id]);
-  const totalAmount = selectedGrants.reduce((sum, s) => sum + s.amount, 0);
-  const selectedCount = selectedGrants.length;
+  const utilizationPolicies = filteredSubsidies.filter(
+    (s) => s.type === "utilization",
+  );
+
+  const selectedConfirmed = confirmedPolicies.filter(
+    (s) => selectedSubsidies[s.id] && s.amount && s.amount > 0,
+  );
+  const selectedUtilization = utilizationPolicies.filter(
+    (s) => selectedSubsidies[s.id] && s.amount && s.amount > 0,
+  );
+
+  const confirmedAmount = selectedConfirmed.reduce(
+    (sum, s) => sum + (s.amount || 0),
+    0,
+  );
+  const utilizationAmount = selectedUtilization.reduce(
+    (sum, s) => sum + (s.amount || 0),
+    0,
+  );
+  const totalAmount = confirmedAmount + utilizationAmount;
+  const selectedCount = selectedConfirmed.length + selectedUtilization.length;
+  const grants = [...confirmedPolicies, ...utilizationPolicies].filter(
+    (s) => s.amount && s.amount > 0,
+  );
+
   const today = new Date();
   const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")} 기준`;
 
@@ -395,6 +447,8 @@ function DashboardPage({ userName, onLogout }) {
             </div>
             <SummaryCards
               totalAmount={totalAmount}
+              confirmedAmount={confirmedAmount}
+              utilizationAmount={utilizationAmount}
               selectedCount={selectedCount}
               totalCount={grants.length}
               hasOptimized={hasOptimized}
@@ -406,6 +460,9 @@ function DashboardPage({ userName, onLogout }) {
                 onToggle={toggleSubsidy}
                 categories={CATEGORIES}
                 duplicateGroups={dynamicDupGroups}
+                onResetToRecommended={() =>
+                  setSelectedSubsidies({ ...recommendedSelections })
+                }
               />
             ) : (
               <div className="empty-state">

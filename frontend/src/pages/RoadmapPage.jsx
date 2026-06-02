@@ -5,18 +5,13 @@ import "./RoadmapPage.css";
 
 // ── 카테고리 (subsidies.js의 CATEGORIES + asset 포함) ─────────────────────────
 const ALL_CATEGORIES = {
-  living: { label: "생활지원", color: "#E53935" },
-  realestate: { label: "주거", color: "#43A047" },
-  housing: { label: "주거", color: "#43A047" },
   employment: { label: "취업·교육", color: "#FB8C00" },
-  education: { label: "취업·교육", color: "#FB8C00" },
-  startup: { label: "창업", color: "#FB8C00" },
-  transport: { label: "교통", color: "#8E24AA" },
-  asset: { label: "자산형성", color: "#007AFF" },
-  finance: { label: "자산형성", color: "#007AFF" },
+  housing: { label: "주거", color: "#43A047" },
+  finance: { label: "금융·자산", color: "#007AFF" },
+  health: { label: "건강·복지", color: "#00BCD4" },
   culture: { label: "문화", color: "#FF375F" },
-  health: { label: "건강", color: "#00BCD4" },
-  welfare: { label: "복지", color: "#5AC8FA" },
+  military: { label: "군장병", color: "#5AC8FA" },
+  education: { label: "교육·장학", color: "#8E24AA" },
 };
 
 // ── 신청 기간 데이터 ──────────────────────────────────────────────────────────
@@ -122,7 +117,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
   const selectedItems = (subsidies || []).filter(
     (s) =>
       selectedSubsidies?.[s.id] &&
-      s.type === "grant" &&
+      (s.type === "confirmed" || s.type === "utilization") &&
       s.amount &&
       s.amount > 0,
   );

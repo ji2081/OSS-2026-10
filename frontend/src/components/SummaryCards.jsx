@@ -2,6 +2,8 @@ import "./SummaryCards.css";
 
 function SummaryCards({
   totalAmount,
+  confirmedAmount,
+  utilizationAmount,
   selectedCount,
   totalCount,
   hasOptimized,
@@ -31,6 +33,18 @@ function SummaryCards({
             <span className="value-empty">—</span>
           )}
         </div>
+        {hasOptimized && (
+          <div className="card-breakdown">
+            <span className="breakdown-item">
+              확정 <strong>{confirmedAmount.toLocaleString()}만원</strong>
+            </span>
+            <span className="breakdown-divider">·</span>
+            <span className="breakdown-item utilization">
+              활용 시 추가{" "}
+              <strong>+{utilizationAmount.toLocaleString()}만원</strong>
+            </span>
+          </div>
+        )}
         <p className="card-desc">
           {hasOptimized ? "선택된 정책 합산" : "정책을 선택해주세요"}
         </p>

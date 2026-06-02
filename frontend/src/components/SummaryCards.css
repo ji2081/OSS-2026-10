@@ -83,3 +83,19 @@
     font-size: 24px;
   }
 }
+
+.card-breakdown {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.breakdown-item.utilization strong {
+  color: #ff9500;
+}
+
+.breakdown-divider {
+  color: #ccc;
+}
