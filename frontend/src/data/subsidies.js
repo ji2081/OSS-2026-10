@@ -533,14 +533,21 @@ export function getApplicationStatus(policy) {
   const start = policy.apply_start ? new Date(policy.apply_start) : null;
   const end = policy.apply_end ? new Date(policy.apply_end) : null;
 
+  // is_active false → 종료
   if (policy.is_active === false) return { label: '종료', color: '#999', bg: '#F0F0F0' };
-  if (policy.is_open_ended) return { label: '상시', color: '#2196F3', bg: '#E3F2FD' };
-  if (!start && !end) return { label: '상시', color: '#2196F3', bg: '#E3F2FD' };
-  if (start && start > today) return { label: '예정', color: '#FF9800', bg: '#FFF3E0', dashed: true };
-  if (start && end && start <= today && end >= today) {
-    const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
-    if (daysLeft <= 7) return { label: '마감임박', color: '#F44336', bg: '#FFEBEE' };
-    return { label: '모집중', color: '#4CAF50', bg: '#E8F5E9' };
-  }
+
+  // null, null, is_open_ended true → 상시
+  if (!start && !end && policy.is_open_ended) return { label: '상시', color: '#2196F3', bg: '#E3F2FD' };
+
+  // 과거, 미래 → 현행 (모집중)
+  if (start && end && start <= today && end > today) return { label: '모집중', color: '#4CAF50', bg: '#E8F5E9' };
+
+  // 미래, 미래 → 하반기 예정
+  if (start && start > today) return { label: '하반기 예정', color: '#FF9800', bg: '#FFF3E0', dashed: true };
+
+  // 과거, 과거, is_active true → 하반기 예정 (작년 기준, 올해 다시 열릴 정책)
+  if (start && end && end <= today && policy.is_active === true) return { label: '하반기 예정', color: '#FF9800', bg: '#FFF3E0', dashed: true };
+
+  // 그 외 → 종료
   return { label: '종료', color: '#999', bg: '#F0F0F0' };
 }
