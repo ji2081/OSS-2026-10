@@ -131,11 +131,6 @@ function DashboardPage({ userName, onLogout }) {
         military: "welfare",
       };
 
-      const now = new Date();
-      const year = now.getFullYear();
-      const nextMonth = now.getMonth() + 2;
-      const nextMonthStr = `${nextMonth > 12 ? year + 1 : year}-${String(nextMonth > 12 ? 1 : nextMonth).padStart(2, "0")}`;
-
       const mapPolicy = (p) => ({
         id: p.id,
         name: p.title,
@@ -149,17 +144,18 @@ function DashboardPage({ userName, onLogout }) {
                   10000,
               )
             : 0,
-        startDate: p.apply_start ? p.apply_start.slice(0, 7) : nextMonthStr,
-        endDate: p.apply_end ? p.apply_end.slice(0, 7) : `${year}-12`,
+        apply_start: p.apply_start || null,
+        apply_end: p.apply_end || null,
+        is_active: p.is_active !== false,
+        is_open_ended: p.is_open_ended || false,
         provider: p.host_org || "",
-        isDuplicate: (p.exclusive_with || []).length > 0,
-        duplicateGroup: null,
-        duplicateWith: p.exclusive_with || [],
+        exclusive_with: p.exclusive_with || [],
         warning: p.target_unemployed_only ? "미취업자" : null,
         description: p.benefit_description || "",
         documents: [],
-        applyUrl: p.source_url,
+        source_url: p.source_url,
         deadline: p.apply_end,
+        duration_months: p.tiers?.[0]?.duration_months || null,
       });
 
       const toBenefit = (p) => ({
@@ -177,9 +173,9 @@ function DashboardPage({ userName, onLogout }) {
         amountLabel: "별도 안내",
         provider: p.provider,
         description: p.description,
-        applyUrl: p.applyUrl,
+        source_url: p.source_url,
         tags: [],
-        period: p.startDate ? { start: p.startDate, end: p.endDate } : null,
+        period: p.apply_start ? { start: p.apply_start, end: p.apply_end } : null,
         eligibility: {},
         isOneTime: false,
         isRecurring: false,
@@ -191,8 +187,6 @@ function DashboardPage({ userName, onLogout }) {
         mapPolicy,
       );
 
-      // confirmed + utilization → 대시보드 체크리스트
-      // selective → 알짜배기
       const mainPolicies = converted.filter(
         (p) =>
           (p.type === "confirmed" || p.type === "utilization") &&
@@ -219,13 +213,12 @@ function DashboardPage({ userName, onLogout }) {
       const allPolicies = [...mainPolicies, ...suppMain];
       const newSelections = {};
 
-      // MWIS 선택 정책 기본 선택
       mainPolicies.forEach((s) => {
         newSelections[s.id] = true;
       });
 
       suppMain.forEach((s) => {
-        const hasConflict = (s.duplicateWith || []).some(
+        const hasConflict = (s.exclusive_with || []).some(
           (id) => newSelections[id],
         );
         if (!hasConflict) {
@@ -233,12 +226,11 @@ function DashboardPage({ userName, onLogout }) {
         }
       });
 
-      // confirmed 타입 충돌 처리 (confirmed끼리만)
       allPolicies
         .filter((s) => s.type === "confirmed" && s.amount && s.amount > 0)
         .forEach((s) => {
-          const hasConflictSelected = (s.duplicateWith || []).some((id) => {
-            const conflictPolicy = allPolicies.find((p) => p.id === id);
+          const hasConflictSelected = (s.exclusive_with || []).some((id) => {
+            const conflictPolicy = allPolicies.find((x) => x.id === id);
             return newSelections[id] && conflictPolicy?.type === "confirmed";
           });
           if (!hasConflictSelected) {
@@ -253,35 +245,20 @@ function DashboardPage({ userName, onLogout }) {
       console.log("백엔드 추천 총액:", data.total_benefit);
     } catch (err) {
       console.error("API 에러:", err);
-      const eligible = MOCK_SUBSIDIES.filter((s) =>
-        checkEligibility(s, activeCondition),
-      );
-      setFilteredSubsidies(eligible);
-      const newSelections = {};
-      eligible
-        .filter((s) => s.type === "grant")
-        .forEach((s) => {
-          if (s.duplicateGroup) {
-            const group = DUPLICATE_GROUPS.find(
-              (g) => g.id === s.duplicateGroup,
-            );
-            newSelections[s.id] = group ? group.recommendedId === s.id : false;
-          } else {
-            newSelections[s.id] = true;
-          }
-        });
-      setSelectedSubsidies(newSelections);
+      setFilteredSubsidies([]);
+      setSelectedSubsidies({});
       setHasOptimized(true);
+      alert("서버 연결에 실패했습니다. 백엔드가 실행 중인지 확인해주세요.");
     }
   };
 
   const toggleSubsidy = (subsidyId) => {
     const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
 
-    if (subsidy && subsidy.duplicateWith && subsidy.duplicateWith.length > 0) {
+    if (subsidy && subsidy.exclusive_with && subsidy.exclusive_with.length > 0) {
       setSelectedSubsidies((prev) => {
         const next = { ...prev };
-        subsidy.duplicateWith.forEach((id) => {
+        subsidy.exclusive_with.forEach((id) => {
           next[id] = false;
         });
         next[subsidyId] = !prev[subsidyId];
@@ -302,10 +279,10 @@ function DashboardPage({ userName, onLogout }) {
   filteredSubsidies
     .filter((s) => s.type === "confirmed")
     .forEach((s) => {
-      if (s.duplicateWith?.length > 0 && !processed.has(s.id)) {
-        const conflictingConfirmed = s.duplicateWith.filter((id) => {
-          const p = filteredSubsidies.find((p) => p.id === id);
-          return p && p.type === "confirmed";
+      if (s.exclusive_with?.length > 0 && !processed.has(s.id)) {
+        const conflictingConfirmed = s.exclusive_with.filter((id) => {
+          const x = filteredSubsidies.find((p) => p.id === id);
+          return x && x.type === "confirmed";
         });
         if (conflictingConfirmed.length > 0) {
           const group = [s.id, ...conflictingConfirmed];
