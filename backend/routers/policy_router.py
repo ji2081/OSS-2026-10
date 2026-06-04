@@ -13,7 +13,6 @@ from models.policy import Policy
 from models.user_profile import UserProfile
 from models.optimization_result import OptimizationResult
 from models.result_policy import ResultPolicy
-from dependencies.auth import get_current_user
 
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_a_naive import BruteForceSolver
@@ -75,10 +74,11 @@ def _calc_end_date(start: date, income_level: Optional[float], policy: Policy) -
 def optimize_policies(
     request: OptimizeRequest,
     db: Session = Depends(get_db),
-    current_user_id: UUID = Depends(get_current_user)
 ):
+    current_user_id = UUID("00000000-0000-0000-0000-000000000001")
+
     age = request.profile.age
-    income_level = request.profile.income_level  # 중위소득 비율 (float, 예: 1.0 = 100%)
+    income_level = request.profile.income_level
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
     if not profile:
@@ -123,6 +123,10 @@ def optimize_policies(
     mwis_candidates = [p for p in all_policies if not p.is_supplementary]
     supplementary = [p for p in all_policies if p.is_supplementary]
 
+    print(f"[MWIS 후보] {len(mwis_candidates)}개")
+    for p in mwis_candidates:
+        print(f"  - {p.title}")
+
     if not mwis_candidates:
         return OptimizeResponse(
             total_benefit=0,
@@ -133,6 +137,18 @@ def optimize_policies(
 
     adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
 
+    print(f"[그래프 가중치]")
+    for pid, w in weights.items():
+        policy = next((p for p in mwis_candidates if p.id == pid), None)
+        print(f"  - {policy.title if policy else pid}: {w}원")
+
+    print(f"[배타 간선]")
+    for pid, neighbors in adjacency_list.items():
+        if neighbors:
+            policy = next((p for p in mwis_candidates if p.id == pid), None)
+            neighbor_titles = [next((p.title for p in mwis_candidates if p.id == n), str(n)) for n in neighbors]
+            print(f"  - {policy.title if policy else pid} ↔ {neighbor_titles}")
+
     start_time = time.time()
     solver = BruteForceSolver()
     result = solver.solve(adjacency_list, weights)
@@ -141,6 +157,10 @@ def optimize_policies(
     selected_set = frozenset(result.selected_ids)
     optimized_policies = [p for p in mwis_candidates if p.id in selected_set]
     unselected_policies = [p for p in mwis_candidates if p.id not in selected_set]
+
+    print(f"[MWIS 선택 결과] total_benefit={result.total_benefit}")
+    for p in optimized_policies:
+        print(f"  - {p.title} weight={weights.get(p.id, 0)}")
 
     timeline = []
     for p in optimized_policies:

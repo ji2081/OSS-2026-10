@@ -46,22 +46,29 @@ class PolicyResponse(BaseModel):
     category: Optional[PolicyCategory] = None
     benefit_type: Optional[PolicyType] = None
     host_org: Optional[str] = None
+    source_url: Optional[str] = None
     super_region: Optional[str] = None
     age_min: Optional[int] = None
     age_max: Optional[int] = None
     income_standard: Optional[str] = None
+    income_type: Optional[str] = None
     income_threshold: Optional[float] = None
     income_threshold_min: Optional[float] = None
+    parent_income_threshold: Optional[float] = None
+    target_unemployed_only: bool = False
+    situational_condition: Optional[str] = None
     benefit_description: Optional[str] = None
+    benefit_start_lag_days: int = 0
     apply_start: Optional[date] = None
     apply_end: Optional[date] = None
     is_open_ended: bool = False
-    benefit_start_lag_days: int = 0
-    is_active: bool = True
-    is_supplementary: bool = False
-    target_unemployed_only: bool = False
     exclusive_with: List[str] = Field(default_factory=list)
-    source_url: Optional[str] = None
+    exclusive_scope: Optional[str] = None
+    is_supplementary: bool = False
+    is_active: bool = True
+    confidence: Optional[float] = None
     tiers: List[PolicyTierResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
 
     model_config = ConfigDict(from_attributes=True)
