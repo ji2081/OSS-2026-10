@@ -15,7 +15,7 @@ from models.optimization_result import OptimizationResult
 from models.result_policy import ResultPolicy
 
 from services.mwis.graph_builder import build_graph
-from services.mwis.solvers.stage_a_naive import BruteForceSolver
+from services.mwis.solvers.stage_c_2_preprocess import PreprocessSolver
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -175,7 +175,7 @@ def optimize_policies(
         user_profile_id=profile.id,
         total_benefit=result.total_benefit,
         policy_count=len(optimized_policies),
-        algorithm="stage_a_naive",
+        algorithm="stage_c_2_preprocess",
         exec_ms=exec_ms,
     )
     db.add(opt_result)

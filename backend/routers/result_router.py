@@ -60,6 +60,27 @@ def get_optimization_result_detail(
     return result
 
 
+@router.get("/latest", response_model=List[OptimizationResultResponse])
+def get_latest_results(
+    limit: int = 5,
+    db: Session = Depends(get_db),
+):
+    hardcoded_user_id = UUID("00000000-0000-0000-0000-000000000001")
+    profile = db.query(UserProfile).filter(
+        UserProfile.user_id == hardcoded_user_id
+    ).first()
+    if not profile:
+        return []
+
+    return (
+        db.query(OptimizationResult)
+        .filter(OptimizationResult.user_profile_id == profile.id)
+        .order_by(OptimizationResult.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 @router.delete("/detail/{result_id}", status_code=204)
 def delete_optimization_result(
     result_id: UUID,

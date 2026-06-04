@@ -11,7 +11,6 @@ from routers.result_router import router as result_router
 from database import engine
 
 from routers.roadmap_router import router as roadmap_router
-app.include_router(roadmap_router)
 
 app = FastAPI(
     title="청년 정책 맞춤형 추천 API",
@@ -48,3 +47,4 @@ def read_root():
 app.include_router(policy_router)
 app.include_router(user_router)
 app.include_router(result_router)
+app.include_router(roadmap_router)
