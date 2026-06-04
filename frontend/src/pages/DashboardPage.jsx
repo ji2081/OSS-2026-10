@@ -4,6 +4,7 @@ import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
 import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
+import GraphPage from "./GraphPage";
 import logoImg from "../logo.png";
 import "./DashboardPage.css";
 import {
@@ -156,7 +157,8 @@ function DashboardPage({ userName, onLogout }) {
         documents: [],
         source_url: p.source_url,
         deadline: p.apply_end,
-        duration_months: p.tiers?.[0]?.duration_months || null,
+        duration_months:
+          p.tiers && p.tiers.length > 0 ? p.tiers[0].duration_months : null,
       });
 
       const toBenefit = (p) => ({
@@ -176,7 +178,9 @@ function DashboardPage({ userName, onLogout }) {
         description: p.description,
         source_url: p.source_url,
         tags: [],
-        period: p.apply_start ? { start: p.apply_start, end: p.apply_end } : null,
+        period: p.apply_start
+          ? { start: p.apply_start, end: p.apply_end }
+          : null,
         eligibility: {},
         isOneTime: false,
         isRecurring: false,
@@ -256,7 +260,11 @@ function DashboardPage({ userName, onLogout }) {
   const toggleSubsidy = (subsidyId) => {
     const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
 
-    if (subsidy && subsidy.exclusive_with && subsidy.exclusive_with.length > 0) {
+    if (
+      subsidy &&
+      subsidy.exclusive_with &&
+      subsidy.exclusive_with.length > 0
+    ) {
       setSelectedSubsidies((prev) => {
         const next = { ...prev };
         subsidy.exclusive_with.forEach((id) => {
@@ -373,7 +381,7 @@ function DashboardPage({ userName, onLogout }) {
           >
             알짜배기 정보
           </a>
-            < a
+          <a
             href="#"
             className={`nav-item${currentPage === "graph" ? " active" : ""}`}
             onClick={(e) => {
@@ -381,10 +389,8 @@ function DashboardPage({ userName, onLogout }) {
               setCurrentPage("graph");
             }}
           >
-            배타 그래프
+            정책 그래프
           </a>
-
-
         </nav>
         <div className="header-right">
           <span className="header-date">{dateStr}</span>
@@ -486,14 +492,11 @@ function DashboardPage({ userName, onLogout }) {
           />
         </div>
       )}
+
       {currentPage === "graph" && (
-    <div className="subpage-wrap">
-    <ExclusionGraphPage
-      subsidies={filteredSubsidies}
-      selectedSubsidies={selectedSubsidies}
-      hasOptimized={hasOptimized}
-      />
-     </div>
+        <div className="subpage-wrap">
+          <GraphPage selectedSubsidies={selectedSubsidies} />
+        </div>
       )}
     </div>
   );

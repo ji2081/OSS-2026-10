@@ -97,10 +97,10 @@ def optimize_policies(
     if request.profile.is_employed:
         base_query = base_query.filter(Policy.target_unemployed_only == False)
 
-    # if income_level is not None:
-    #     base_query = base_query.filter(
-    #         (Policy.income_limit == None) | (Policy.income_limit >= income_level)
-    #     )
+    if income_level is not None:
+        base_query = base_query.filter(
+            (Policy.income_threshold == None) | (Policy.income_threshold >= income_level)
+        )
 
     if request.profile.region:
         base_query = base_query.filter(
