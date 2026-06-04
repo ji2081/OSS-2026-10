@@ -96,8 +96,8 @@ def optimize_policies(
         db.query(Policy)
         .options(joinedload(Policy.tiers))
         .filter(Policy.is_active == True)
-        .filter((Policy.age_min == None) | (Policy.age_min.cast(Integer) <= age))
-        .filter((Policy.age_max == None) | (Policy.age_max.cast(Integer) >= age))
+        .filter((Policy.age_min == None) | (Policy.age_min <= age))
+        .filter((Policy.age_max == None) | (Policy.age_max >= age))
     )
 
     if request.profile.is_employed:
@@ -106,8 +106,6 @@ def optimize_policies(
     if income_level is not None:
         base_query = base_query.filter(
             (Policy.income_threshold == None) | (Policy.income_threshold >= income_level)
-        ).filter(
-            (Policy.income_threshold_min == None) | (Policy.income_threshold_min <= income_level)
         )
 
     if request.profile.region:
@@ -195,8 +193,8 @@ def optimize_policies(
     db.commit()
 
     return OptimizeResponse(
-        total_benefit=result.total_benefit,
-        selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
-        supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary + unselected_policies],
-        timeline=timeline,
-    )
+    total_benefit=result.total_benefit,
+    selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
+    supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary + unselected_policies],
+    timeline=timeline,
+)
