@@ -90,17 +90,17 @@ def optimize_policies(
         db.query(Policy)
         .options(joinedload(Policy.tiers))
         .filter(Policy.is_active == True)
-        .filter((Policy.age_min == None) | (Policy.age_min.cast(Integer) <= age))
-        .filter((Policy.age_max == None) | (Policy.age_max.cast(Integer) >= age))
+        .filter((Policy.age_min == None) | (Policy.age_min <= age))
+        .filter((Policy.age_max == None) | (Policy.age_max >= age))
     )
 
     if request.profile.is_employed:
         base_query = base_query.filter(Policy.target_unemployed_only == False)
 
-    # if income_level is not None:
-    #     base_query = base_query.filter(
-    #         (Policy.income_limit == None) | (Policy.income_limit >= income_level)
-    #     )
+    if income_level is not None:
+        base_query = base_query.filter(
+            (Policy.income_threshold == None) | (Policy.income_threshold >= income_level)
+        )
 
     if request.profile.region:
         base_query = base_query.filter(
