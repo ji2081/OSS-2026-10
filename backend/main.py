@@ -10,6 +10,9 @@ from routers.user_router import router as user_router
 from routers.result_router import router as result_router
 from database import engine
 
+from routers.roadmap_router import router as roadmap_router
+app.include_router(roadmap_router)
+
 app = FastAPI(
     title="청년 정책 맞춤형 추천 API",
     description="청년을 위한 최적화된 정책 추천 서비스 (OSS-2026-10)",
