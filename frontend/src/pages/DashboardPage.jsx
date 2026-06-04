@@ -13,6 +13,7 @@ import {
   CATEGORIES,
   checkEligibility,
 } from "../data/subsidies";
+import ExclusionGraphPage from "./ExclusionGraphPage";
 
 function DashboardPage({ userName, onLogout }) {
   const defaultCondition = {
