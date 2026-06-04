@@ -90,8 +90,8 @@ def optimize_policies(
         db.query(Policy)
         .options(joinedload(Policy.tiers))
         .filter(Policy.is_active == True)
-        .filter((Policy.age_min == None) | (Policy.age_min.cast(Integer) <= age))
-        .filter((Policy.age_max == None) | (Policy.age_max.cast(Integer) >= age))
+        .filter((Policy.age_min == None) | (Policy.age_min <= age))
+        .filter((Policy.age_max == None) | (Policy.age_max >= age))
     )
 
     if request.profile.is_employed:

@@ -1,482 +1,221 @@
-/* LoginPage.css — 흑백 미니멀
+/* ── 로그인 v2: 그래프 배경 + 글래스모피즘 ── */
+.login-container-v2 {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0a0a;
+}
 
-.login-container {
-  min-height: 100vh;
+.bg-graph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* 로그인 패널 — 왼쪽에서 슬라이드 인 */
+.login-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 420px;
+  height: 100%;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #111111;
-  position: relative;
-  overflow: hidden;
-  padding: 20px;
+  padding: 40px;
+  opacity: 0;
+  transform: translateX(-60px);
+  transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
 }
 
-.bg-circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.03;
-  background: #fff;
-}
-.bg-circle-1 {
-  width: 800px;
-  height: 800px;
-  top: -300px;
-  right: -200px;
-}
-.bg-circle-2 {
-  width: 500px;
-  height: 500px;
-  bottom: -200px;
-  left: -100px;
-}
-.bg-circle-3 {
-  width: 300px;
-  height: 300px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.login-panel.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: all;
 }
 
-.login-card {
-  background: #ffffff;
-  border-radius: 4px;
-  padding: 56px 48px;
+.login-card-v2 {
   width: 100%;
-  max-width: 400px;
-  position: relative;
-  z-index: 1;
-  animation: slideUp 0.5s ease-out;
+  max-width: 360px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 40px 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.login-header {
+.login-card-v2 .login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
 }
 
 .login-logo {
-  margin-bottom: 20px;
-}
-
-.logo-icon {
-  display: none;
-}
-
-.login-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #111;
-  letter-spacing: -0.5px;
-  margin-bottom: 6px;
-}
-
-.login-subtitle {
-  font-size: 11px;
-  color: #999;
-  font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.input-group label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #999;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.input-group input {
-  padding: 12px 0;
-  border: none;
-  border-bottom: 1px solid #e0e0e0;
-  border-radius: 0;
-  font-size: 15px;
-  transition: border-color 0.2s;
-  background: transparent;
-  color: #111;
-  outline: none;
-}
-
-.input-group input:focus {
-  border-bottom-color: #111;
-}
-
-.input-group input::placeholder {
-  color: #ccc;
-}
-
-.login-error {
-  font-size: 12px;
-  color: #cc0000;
-  background: #fff5f5;
-  padding: 10px 14px;
-  border-radius: 2px;
-  border-left: 2px solid #cc0000;
-}
-
-.login-button {
-  padding: 14px;
-  background: #111111;
-  color: #ffffff;
-  border-radius: 2px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  transition: all 0.2s;
-  margin-top: 8px;
-  border: none;
-  cursor: pointer;
-}
-
-.login-button:hover {
-  background: #333333;
-}
-
-.login-button:active {
-  background: #000000;
-}
-
-.login-footer {
-  text-align: center;
-  margin-top: 28px;
-  font-size: 13px;
-  color: #999;
-}
-
-.login-footer a {
-  color: #111;
-  text-decoration: none;
-  font-weight: 600;
-  border-bottom: 1px solid #111;
-  padding-bottom: 1px;
-}
-
-.login-footer a:hover {
-  color: #666;
-  border-bottom-color: #666;
-}
-
-.login-dev-notice {
-  margin-top: 24px;
-  padding: 10px;
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 2px;
-  text-align: center;
-}
-
-.login-dev-notice p {
-  font-size: 11px;
-  color: #999;
-}
-
-/* ===== 회원가입 모달 ===== */
-/* .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-card {
-  background: #ffffff;
-  border-radius: 4px;
-  padding: 56px 48px;
-  width: 100%;
-  max-width: 400px;
-  position: relative;
-  animation: modalSlideUp 0.3s ease-out;
-}
-
-@keyframes modalSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modal-close {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: #999;
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s;
-}
-
-.modal-close:hover {
-  color: #111;
-}
-
-.signup-success {
-  text-align: center;
-  padding: 20px 0;
-}
-
-.success-icon {
-  font-size: 36px;
+  width: 48px;
+  height: 48px;
   margin-bottom: 12px;
 }
 
-.signup-success p {
-  font-size: 15px;
-  font-weight: 600;
-  color: #111;
-  margin-bottom: 4px;
-}
-
-.signup-success span {
-  font-size: 12px;
-  color: #999;
-} */ /* 이전 css */
-
-/* LoginPage.css — 흑백 미니멀 */
-
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #111111;
-  position: relative;
-  overflow: hidden;
-  padding: 20px;
-}
-
-.bg-circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.03;
-  background: #fff;
-}
-.bg-circle-1 {
-  width: 800px;
-  height: 800px;
-  top: -300px;
-  right: -200px;
-}
-.bg-circle-2 {
-  width: 500px;
-  height: 500px;
-  bottom: -200px;
-  left: -100px;
-}
-.bg-circle-3 {
-  width: 300px;
-  height: 300px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.login-card {
-  background: #ffffff;
-  border-radius: 4px;
-  padding: 56px 48px;
-  width: 100%;
-  max-width: 400px;
-  position: relative;
-  z-index: 1;
-  animation: slideUp 0.5s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.login-logo {
-  margin-bottom: 20px;
-}
-
-.logo-icon {
-  display: none;
-}
-
-.login-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #111;
+.login-card-v2 .login-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px;
   letter-spacing: -0.5px;
+}
+
+.login-card-v2 .login-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+/* 입력 필드 */
+.login-card-v2 .input-group {
+  margin-bottom: 16px;
+}
+
+.login-card-v2 .input-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
   margin-bottom: 6px;
 }
 
-.login-subtitle {
-  font-size: 11px;
-  color: #999;
-  font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.input-group label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #999;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.input-group input {
-  padding: 12px 0;
-  border: none;
-  border-bottom: 1px solid #e0e0e0;
-  border-radius: 0;
-  font-size: 15px;
-  transition: border-color 0.2s;
-  background: transparent;
-  color: #111;
+.login-card-v2 .input-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
   outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
-.input-group input:focus {
-  border-bottom-color: #111;
+.login-card-v2 .input-group input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
 
-.input-group input::placeholder {
-  color: #ccc;
+.login-card-v2 .input-group input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.login-error {
-  font-size: 12px;
-  color: #cc0000;
-  background: #fff5f5;
-  padding: 10px 14px;
-  border-radius: 2px;
-  border-left: 2px solid #cc0000;
-}
-
-.login-button {
-  padding: 14px;
-  background: #111111;
-  color: #ffffff;
-  border-radius: 2px;
+/* 버튼 */
+.login-card-v2 .login-button {
+  width: 100%;
+  padding: 13px;
+  background: #fff;
+  color: #111;
+  border: none;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  transition: all 0.2s;
-  margin-top: 8px;
-  border: none;
   cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 4px;
 }
 
-.login-button:hover {
-  background: #333333;
+.login-card-v2 .login-button:hover {
+  opacity: 0.9;
 }
 
-.login-button:active {
-  background: #000000;
+.login-card-v2 .login-error {
+  color: #FF6B6B;
+  font-size: 12px;
+  margin: 0 0 8px;
 }
 
-.login-footer {
+/* 소셜 */
+.login-card-v2 .social-divider {
   text-align: center;
-  margin-top: 28px;
+  margin: 20px 0;
+  position: relative;
+}
+
+.login-card-v2 .social-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.login-card-v2 .social-divider span {
+  background: transparent;
+  padding: 0 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  position: relative;
+}
+
+.login-card-v2 .social-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.login-card-v2 .social-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-card-v2 .social-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.login-card-v2 .social-btn svg path {
+  fill: rgba(255, 255, 255, 0.8);
+}
+
+.login-card-v2 .social-btn.google svg path:nth-child(1) { fill: #4285F4; }
+.login-card-v2 .social-btn.google svg path:nth-child(2) { fill: #34A853; }
+.login-card-v2 .social-btn.google svg path:nth-child(3) { fill: #FBBC05; }
+.login-card-v2 .social-btn.google svg path:nth-child(4) { fill: #EA4335; }
+
+/* 푸터 */
+.login-card-v2 .login-footer {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.login-card-v2 .login-footer p {
   font-size: 13px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
 }
 
-.login-footer a {
-  color: #111;
-  text-decoration: none;
-  font-weight: 600;
-  border-bottom: 1px solid #111;
-  padding-bottom: 1px;
+.login-card-v2 .login-footer a {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: underline;
+  font-weight: 500;
 }
 
-.login-footer a:hover {
-  color: #666;
-  border-bottom-color: #666;
-}
-
-.login-dev-notice {
-  margin-top: 24px;
-  padding: 10px;
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 2px;
-  text-align: center;
-}
-
-.login-dev-notice p {
-  font-size: 11px;
-  color: #999;
-}
-
-/* ===== 회원가입 모달 ===== */
+/* ── 모달 (기존 유지) ── */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -484,136 +223,61 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  z-index: 100;
 }
 
 .modal-card {
-  background: #ffffff;
-  border-radius: 4px;
-  padding: 56px 48px;
-  width: 100%;
-  max-width: 400px;
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: 360px;
   position: relative;
-  animation: modalSlideUp 0.3s ease-out;
-}
-
-@keyframes modalSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(15px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .modal-close {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 16px;
+  right: 16px;
   background: none;
   border: none;
-  font-size: 16px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 18px;
   cursor: pointer;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s;
 }
 
-.modal-close:hover {
-  color: #111;
-}
+.modal-card .login-header { text-align: center; margin-bottom: 24px; }
+.modal-card .login-title { color: #fff; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+.modal-card .login-subtitle { color: rgba(255,255,255,0.5); font-size: 13px; margin: 0; }
 
-.signup-success {
-  text-align: center;
-  padding: 20px 0;
+.modal-card .input-group { margin-bottom: 14px; }
+.modal-card .input-group label { display: block; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
+.modal-card .input-group input {
+  width: 100%; padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+  background: rgba(255,255,255,0.06); color: #fff; font-size: 14px;
+  outline: none; box-sizing: border-box;
 }
+.modal-card .input-group input::placeholder { color: rgba(255,255,255,0.3); }
+.modal-card .login-button {
+  width: 100%; padding: 13px; background: #fff; color: #111;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; margin-top: 4px;
+}
+.modal-card .login-error { color: #FF6B6B; font-size: 12px; margin: 0 0 8px; }
 
-.success-icon {
-  font-size: 36px;
-  margin-bottom: 12px;
-}
+.signup-success { text-align: center; padding: 20px 0; color: rgba(255,255,255,0.8); }
+.signup-success .success-icon { font-size: 36px; margin-bottom: 12px; }
+.signup-success p { font-size: 16px; font-weight: 600; margin: 0 0 8px; color: #fff; }
+.signup-success span { font-size: 13px; color: rgba(255,255,255,0.5); }
 
-.signup-success p {
-  font-size: 15px;
-  font-weight: 600;
-  color: #111;
-  margin-bottom: 4px;
-}
-
-.signup-success span {
-  font-size: 12px;
-  color: #999;
-}
-/* 소셜 로그인 */
-.social-divider {
-  text-align: center;
-  margin: 20px 0;
-  position: relative;
-}
-.social-divider::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #e0e0e0;
-}
-.social-divider span {
-  background: #fff;
-  padding: 0 12px;
-  font-size: 12px;
-  color: #999;
-  position: relative;
-}
-
-.social-buttons {
-  display: flex;
-  gap: 8px;
-}
-.social-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 11px;
-  border: 1px solid #e0e0e0;
-  border-radius: 2px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  color: #333;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.social-btn:hover {
-  background: #f5f5f5;
-}
-.social-btn.kakao {
-  background: #fee500;
-  border-color: #fee500;
-  color: #3c1e1e;
-}
-.social-btn.kakao:hover {
-  background: #f0d800;
+@media (max-width: 768px) {
+  .login-panel { width: 100%; padding: 20px; }
+  .login-card-v2 { padding: 32px 24px; }
+  .bg-graph { opacity: 0.3; }
 }

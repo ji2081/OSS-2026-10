@@ -9,7 +9,7 @@ class ResultPolicy(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     result_id = Column(UUID(as_uuid=True), ForeignKey("optimization_results.id", ondelete="CASCADE"), nullable=False)
-    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies2.id", ondelete="CASCADE"), nullable=False)
+    policy_id = Column(UUID(as_uuid=True), ForeignKey("policies.id", ondelete="CASCADE"), nullable=False)
     seq_order = Column(Integer)
     start_date = Column(Date)
     end_date = Column(Date)

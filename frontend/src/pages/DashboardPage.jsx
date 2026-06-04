@@ -12,6 +12,7 @@ import {
   CATEGORIES,
   checkEligibility,
 } from "../data/subsidies";
+import ExclusionGraphPage from "./ExclusionGraphPage";
 
 function DashboardPage({ userName, onLogout }) {
   const defaultCondition = {
@@ -372,6 +373,18 @@ function DashboardPage({ userName, onLogout }) {
           >
             알짜배기 정보
           </a>
+            < a
+            href="#"
+            className={`nav-item${currentPage === "graph" ? " active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage("graph");
+            }}
+          >
+            배타 그래프
+          </a>
+
+
         </nav>
         <div className="header-right">
           <span className="header-date">{dateStr}</span>
@@ -472,6 +485,15 @@ function DashboardPage({ userName, onLogout }) {
             dbBenefits={extraBenefits}
           />
         </div>
+      )}
+      {currentPage === "graph" && (
+    <div className="subpage-wrap">
+    <ExclusionGraphPage
+      subsidies={filteredSubsidies}
+      selectedSubsidies={selectedSubsidies}
+      hasOptimized={hasOptimized}
+      />
+     </div>
       )}
     </div>
   );
