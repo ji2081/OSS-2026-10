@@ -16,7 +16,7 @@ from models.result_policy import ResultPolicy
 from dependencies.auth import get_current_user
 
 from services.mwis.graph_builder import build_graph
-from services.mwis.solvers.stage_c_2_preprocess import PreprocessSolver
+from services.mwis.solvers.stage_a_naive import BruteForceSolver
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -47,18 +47,29 @@ def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
         .filter(Policy.id == policy_id)
         .first()
     )
-
     if not policy:
         raise HTTPException(status_code=404, detail=f"정책 ID {policy_id}를 찾을 수 없습니다.")
-
     return policy
 
-def get_total_benefit(policy):
-    if not policy.tiers:
-        return 0
-    tier = policy.tiers[0]
-    return (tier.monthly_benefit or 0) * (tier.duration_months or 0)
-    
+
+def _calc_end_date(start: date, income_level: Optional[float], policy: Policy) -> date:
+    applicable_tier = None
+    if policy.tiers:
+        if income_level is not None:
+            applicable_tier = next(
+                (t for t in sorted(policy.tiers, key=lambda t: t.max_income_ratio or 999)
+                 if t.max_income_ratio is None or t.max_income_ratio >= income_level),
+                policy.tiers[0]
+            )
+        else:
+            applicable_tier = policy.tiers[0]
+
+    if applicable_tier and applicable_tier.duration_months:
+        m = start.month - 1 + applicable_tier.duration_months
+        return date(start.year + m // 12, m % 12 + 1, 1)
+
+    return date(start.year + 1, start.month, 1)
+
 
 @router.post("/optimize", response_model=OptimizeResponse)
 def optimize_policies(
@@ -67,11 +78,7 @@ def optimize_policies(
     current_user_id: UUID = Depends(get_current_user)
 ):
     age = request.profile.age
-    income_level = request.profile.income_level
-
-    # profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
-    # if not profile:
-    #     raise HTTPException(status_code=404, detail="프로필을 먼저 등록해 주세요.")
+    income_level = request.profile.income_level  # 중위소득 비율 (float, 예: 1.0 = 100%)
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
     if not profile:
@@ -80,7 +87,6 @@ def optimize_policies(
             age=request.profile.age,
             income_level=request.profile.income_level,
             region=request.profile.region,
-            sub_region=request.profile.sub_region,
             is_employed=request.profile.is_employed,
         )
         db.add(profile)
@@ -97,10 +103,12 @@ def optimize_policies(
     if request.profile.is_employed:
         base_query = base_query.filter(Policy.target_unemployed_only == False)
 
-    # if income_level is not None:
-    #     base_query = base_query.filter(
-    #         (Policy.income_limit == None) | (Policy.income_limit >= income_level)
-    #     )
+    if income_level is not None:
+        base_query = base_query.filter(
+            (Policy.income_threshold == None) | (Policy.income_threshold >= income_level)
+        ).filter(
+            (Policy.income_threshold_min == None) | (Policy.income_threshold_min <= income_level)
+        )
 
     if request.profile.region:
         base_query = base_query.filter(
@@ -126,7 +134,7 @@ def optimize_policies(
     adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
 
     start_time = time.time()
-    solver = PreprocessSolver()
+    solver = BruteForceSolver()
     result = solver.solve(adjacency_list, weights)
     exec_ms = int((time.time() - start_time) * 1000)
 
@@ -135,29 +143,9 @@ def optimize_policies(
     unselected_policies = [p for p in mwis_candidates if p.id not in selected_set]
 
     timeline = []
-    current_date = date.today()
     for p in optimized_policies:
-        start = p.apply_start or current_date
-
-        applicable_tier = None
-        if income_level and p.tiers:
-            applicable_tier = next(
-                (t for t in sorted(p.tiers, key=lambda t: t.max_income_ratio or 999)
-                 if t.max_income_ratio is None or t.max_income_ratio >= income_level),
-                p.tiers[0]
-            )
-
-        if p.apply_end:
-            end = p.apply_end
-        elif applicable_tier and applicable_tier.duration_months:
-            end = date(
-                start.year + (start.month + applicable_tier.duration_months - 1) // 12,
-                (start.month + applicable_tier.duration_months - 1) % 12 + 1,
-                1
-            )
-        else:
-            end = date(start.year + 1, start.month, 1)
-
+        start = p.apply_start or date.today()
+        end = _calc_end_date(start, income_level, p)
         timeline.append(TimelineItem(
             policy_id=p.id,
             title=p.title,
@@ -169,7 +157,7 @@ def optimize_policies(
         user_profile_id=profile.id,
         total_benefit=result.total_benefit,
         policy_count=len(optimized_policies),
-        algorithm="stage_c_2_preprocess",
+        algorithm="stage_a_naive",
         exec_ms=exec_ms,
     )
     db.add(opt_result)
@@ -187,8 +175,8 @@ def optimize_policies(
     db.commit()
 
     return OptimizeResponse(
-    total_benefit=result.total_benefit,
-    selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
-    supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary + unselected_policies],
-    timeline=timeline,
-)
+        total_benefit=result.total_benefit,
+        selected_policies=[PolicyResponse.model_validate(p) for p in optimized_policies],
+        supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary + unselected_policies],
+        timeline=timeline,
+    )

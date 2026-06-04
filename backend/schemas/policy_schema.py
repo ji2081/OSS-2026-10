@@ -14,6 +14,9 @@ class PolicyCategory(str, Enum):
     CULTURE = "culture"
     WELFARE = "welfare"
     STARTUP = "startup"
+    SCHOLARSHIP = "scholarship"
+    MILITARY = "military"
+    RIGHTS = "rights"
 
 
 class PolicyType(str, Enum):
@@ -26,15 +29,7 @@ class PolicyType(str, Enum):
     CASHBACK = "cashback"
     PASS = "pass"
     OTHER = "other"
-
-class PolicyTierResponse(BaseModel):
-    id: UUID
-    policy_id: UUID
-    max_income_ratio: Optional[float] = None
-    monthly_benefit: Optional[int] = None
-    duration_months: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
+    TRAINING = "training"
 
 
 class PolicyTierResponse(BaseModel):
@@ -48,18 +43,20 @@ class PolicyTierResponse(BaseModel):
 class PolicyResponse(BaseModel):
     id: UUID
     title: str
-    category: PolicyCategory
-    benefit_type: PolicyType
+    category: Optional[PolicyCategory] = None
+    benefit_type: Optional[PolicyType] = None
     host_org: Optional[str] = None
-    super_region: str
-    sub_region: Optional[str] = None
+    super_region: Optional[str] = None
     age_min: Optional[int] = None
     age_max: Optional[int] = None
     income_standard: Optional[str] = None
-    income_limit: Optional[float] = None
+    income_threshold: Optional[float] = None
+    income_threshold_min: Optional[float] = None
     benefit_description: Optional[str] = None
     apply_start: Optional[date] = None
     apply_end: Optional[date] = None
+    is_open_ended: bool = False
+    benefit_start_lag_days: int = 0
     is_active: bool = True
     is_supplementary: bool = False
     target_unemployed_only: bool = False

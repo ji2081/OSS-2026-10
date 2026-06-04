@@ -6,19 +6,17 @@ from uuid import UUID
 
 class UserProfileRequest(BaseModel):
     age: int = Field(..., ge=0, le=120)
-    income_level: Optional[int] = Field(None, ge=0)
+    income_level: Optional[float] = Field(None, ge=0)  # 중위소득 비율 (예: 0.8 = 80%)
     is_employed: bool = Field(False)
     region: str = Field(...)
-    sub_region: Optional[str] = Field(None)
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "age": 25,
-                "income_level": 80,
+                "income_level": 0.8,
                 "is_employed": False,
-                "region": "서울특별시",
-                "sub_region": "강남구"
+                "region": "서울"
             }
         }
     )
@@ -34,10 +32,9 @@ class UserProfileResponse(BaseModel):
     id: UUID
     user_id: UUID
     age: int
-    income_level: Optional[int] = None
+    income_level: Optional[float] = None
     is_employed: bool
     region: str
-    sub_region: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
