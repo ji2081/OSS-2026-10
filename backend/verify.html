@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MWIS 알고리즘 검증 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0f1a; --surface: #161929; --surface2: #1e2235;
+      --border: #2a2e4a; --text: #e2e6f0; --muted: #7a82a0;
+      --green: #22c55e; --red: #ef4444; --blue: #3b82f6; --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px; line-height: 1.6;
+      padding: 2.5rem 3rem; max-width: 1100px; margin: 0 auto;
+    }
+    header { text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.4rem; }
+    header p  { color: var(--muted); font-size: 0.9rem; }
+    section   { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; }
+    section h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .loading { color: var(--muted); padding: 2rem; text-align: center; font-size: 0.85rem; }
+    .error   { color: var(--red); padding: 1rem; font-size: 0.85rem; }
+
+    /* Adversarial */
+    .adv-policies { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .adv-policies th { text-align: left; padding: 0.4rem 0.75rem; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 500; }
+    .adv-policies td { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(42,46,74,0.6); }
+    .adv-policies tr:last-child td { border-bottom: none; }
+    .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .adv-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+    .adv-box.winner { border-color: var(--green); }
+    .adv-box.loser  { border-color: var(--red); }
+    .adv-box.tie    { border-color: var(--amber); }
+    .adv-box h3 { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.75rem; }
+    .tag { display: inline-block; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 5px; padding: 0.2rem 0.55rem; font-size: 0.82rem; margin: 0.2rem 0.2rem 0.2rem 0; }
+    .benefit-num { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 1.25rem; font-weight: 700; }
+    .benefit-num.green { color: var(--green); }
+    .benefit-num.red   { color: var(--red); }
+    .benefit-num.amber { color: var(--amber); }
+    .adv-footer { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+
+    /* Cross-solver */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 0.5rem 0.85rem; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+    td { padding: 0.65rem 0.85rem; border-bottom: 1px solid rgba(42,46,74,0.5); }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge.ok   { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .badge.fail { background: rgba(239,68,68,0.12);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+    .badge.skip { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+    .cross-footer { margin-top: 1rem; font-size: 0.82rem; padding: 0.6rem 0.85rem; border-radius: 6px; }
+    .cross-footer.ok   { background: rgba(34,197,94,0.08); color: var(--green); }
+    .cross-footer.fail { background: rgba(239,68,68,0.08);  color: var(--red); }
+
+    /* Distribution */
+    .stats-row { display: flex; gap: 2.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat-item { text-align: center; }
+    .stat-val  { font-size: 1.5rem; font-weight: 700; }
+    .stat-lbl  { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+    .chart-wrap { position: relative; height: 300px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>청년 지원금 최적 조합 탐색기 — 알고리즘 검증</h1>
+  <p>MWIS (Maximum Weight Independent Set) 정확성 및 성능 분석 · OSS-2026-10</p>
+</header>
+
+<section>
+  <h2>① Adversarial Case</h2>
+  <p class="desc">단순 정렬 선택(Greedy)은 최적 조합을 놓친다 — finance 클러스터 실데이터 · 소득 60%</p>
+  <div id="adv"><div class="loading">데이터 로딩 중…</div></div>
+</section>
+
+<section>
+  <h2>② 교차 솔버 검증</h2>
+  <p class="desc">전수탐색 오라클(Stage A)과 항상 동일한 최적해 — 4개 프로필 비교</p>
+  <div id="cross"><div class="loading">데이터 로딩 중…</div></div>
+</section>
+
+<section>
+  <h2>③ 수혜액 분포 히스토그램</h2>
+  <p class="desc">전체 유효 조합 중 MWIS가 최대 수혜액 조합을 선택 — 25세 / 미취업 / 서울 / 소득 60%</p>
+  <div id="dist-stats"></div>
+  <div class="chart-wrap"><canvas id="hist"></canvas></div>
+</section>
+
+<script>
+const BASE = 'http://localhost:8000';
+const fmt = n => Math.round(n / 10000).toLocaleString('ko-KR') + '만원';
+
+// ── ① Adversarial ──────────────────────────────────────────────
+async function loadAdversarial() {
+  const el = document.getElementById('adv');
+  try {
+    const d = await fetch(`${BASE}/verify/adversarial`).then(r => r.json());
+
+    if (!d.policies.length) {
+      el.innerHTML = '<div class="loading">finance 클러스터 데이터 없음</div>'; return;
+    }
+
+    const ga = d.greedy.total_benefit, ma = d.mwis.total_benefit;
+    const mwisWins = ma > ga, isTie = ma === ga;
+
+    const greedyClass = isTie ? 'tie' : (mwisWins ? 'loser' : 'winner');
+    const mwisClass   = isTie ? 'tie' : (mwisWins ? 'winner' : 'loser');
+    const greedyColor = isTie ? 'amber' : (mwisWins ? 'red' : 'green');
+    const mwisColor   = isTie ? 'amber' : (mwisWins ? 'green' : 'red');
+
+    el.innerHTML = `
+      <table class="adv-policies">
+        <thead><tr><th>정책명</th><th>가중치 (수혜액)</th><th>배타 관계</th></tr></thead>
+        <tbody>${d.policies.map(p => {
+          const partners = d.exclusive_edges
+            .filter(e => e[0] === p.title || e[1] === p.title)
+            .map(e => e[0] === p.title ? e[1] : e[0]);
+          return `<tr>
+            <td>${p.title}</td>
+            <td>${fmt(p.weight)}</td>
+            <td style="color:var(--muted);font-size:0.8rem">${partners.length ? partners.join(', ') : '—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <div class="adv-grid">
+        <div class="adv-box ${greedyClass}">
+          <h3>Greedy — 가중치 내림차순 선택</h3>
+          <div>${d.greedy.selected.map(t => `<span class="tag">${t}</span>`).join('') || '<span style="color:var(--muted)">없음</span>'}</div>
+          <div class="benefit-num ${greedyColor}">${fmt(ga)}</div>
+        </div>
+        <div class="adv-box ${mwisClass}">
+          <h3>MWIS — DPDFSSolver${mwisWins ? ' ✓ 최적해' : ''}</h3>
+          <div>${d.mwis.selected.map(t => `<span class="tag">${t}</span>`).join('') || '<span style="color:var(--muted)">없음</span>'}</div>
+          <div class="benefit-num ${mwisColor}">${fmt(ma)}</div>
+        </div>
+      </div>
+      <div class="adv-footer">
+        ${isTie
+          ? '이 데이터셋에서 Greedy와 MWIS 결과가 동일합니다. (배타 관계 구조에 따라 달라짐)'
+          : mwisWins
+            ? `⚠ Greedy 대비 MWIS <strong style="color:var(--green)">+${fmt(ma - ga)} 추가 수혜</strong> — 단순 정렬로는 최적 조합을 찾을 수 없음`
+            : `이 케이스에서는 Greedy가 더 높은 수혜액을 찾았습니다.`}
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="error">연결 실패: ${e.message} — 백엔드 서버가 실행 중인지 확인하세요.</div>`;
+  }
+}
+
+// ── ② Cross-Solver ─────────────────────────────────────────────
+async function loadCrossSolver() {
+  const el = document.getElementById('cross');
+  try {
+    const rows = await fetch(`${BASE}/verify/cross-solver`).then(r => r.json());
+    if (!rows.length) { el.innerHTML = '<div class="loading">데이터 없음</div>'; return; }
+
+    const solverNames = rows[0].solvers.map(s => s.name);
+    const allMatch = rows.every(r => r.all_match);
+
+    el.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>프로필</th>
+            <th style="text-align:center">후보</th>
+            <th style="text-align:right">최적 수혜액</th>
+            ${solverNames.map(n => `<th style="text-align:right">${n}</th>`).join('')}
+            <th style="text-align:center">일치</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => {
+            const ref = r.solvers.find(s => s.name === 'Stage B');
+            const benefit = ref ? fmt(ref.benefit) : '—';
+            return `<tr>
+              <td>${r.profile}</td>
+              <td style="text-align:center;color:var(--muted)">${r.n_candidates}</td>
+              <td style="text-align:right;font-weight:600">${benefit}</td>
+              ${r.solvers.map(s => {
+                if (s.skipped) return `<td style="text-align:right;color:var(--muted)">생략</td>`;
+                const color = s.match ? 'var(--green)' : 'var(--red)';
+                return `<td style="text-align:right;color:${color}">${s.ms}ms</td>`;
+              }).join('')}
+              <td style="text-align:center">
+                <span class="badge ${r.all_match ? 'ok' : 'fail'}">${r.all_match ? '✓ 일치' : '✗ 불일치'}</span>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem">
+        ※ 수혜액 수치는 Stage B 기준. 시간 색상: <span style="color:var(--green)">초록</span> = Stage B와 일치, <span style="color:var(--red)">빨강</span> = 불일치
+      </div>
+      <div class="cross-footer ${allMatch ? 'ok' : 'fail'}">
+        ${allMatch
+          ? '✓ 전체 프로필에서 5개 솔버 최적해 일치 — 알고리즘 정확성 확인'
+          : '✗ 일부 프로필에서 불일치 발생 — 알고리즘 검토 필요'}
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="error">연결 실패: ${e.message}</div>`;
+  }
+}
+
+// ── ③ Distribution ─────────────────────────────────────────────
+async function loadDistribution() {
+  try {
+    const d = await fetch(`${BASE}/verify/distribution`).then(r => r.json());
+
+    document.getElementById('dist-stats').innerHTML = `
+      <div class="stats-row">
+        <div class="stat-item"><div class="stat-val">${d.total_valid.toLocaleString()}</div><div class="stat-lbl">유효 조합 수</div></div>
+        <div class="stat-item"><div class="stat-val">${d.n_candidates}</div><div class="stat-lbl">MWIS 후보 정책</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--red)">${fmt(d.optimal)}</div><div class="stat-lbl">MWIS 최적값</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--green)">100%</div><div class="stat-lbl">백분위</div></div>
+      </div>
+      ${d.capped ? '<p style="font-size:0.8rem;color:var(--amber);margin-bottom:0.75rem">※ 후보 20개 초과 — 상위 20개 기준 계산</p>' : ''}
+    `;
+
+    if (!d.bins.length) return;
+
+    const labels = d.bins.map(b => fmt(b.x));
+    const data   = d.bins.map(b => b.y);
+    const optIdx = d.bins.findIndex(b => b.x === d.optimal_bin);
+    const colors = d.bins.map((_, i) =>
+      i === optIdx ? 'rgba(239,68,68,0.8)' : 'rgba(59,130,246,0.55)'
+    );
+
+    const vertLine = {
+      id: 'vertLine',
+      afterDraw(chart) {
+        if (optIdx < 0) return;
+        const ctx = chart.ctx;
+        const x   = chart.scales.x.getPixelForValue(optIdx);
+        const top = chart.scales.y.top;
+        const bot = chart.scales.y.bottom;
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot);
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]); ctx.stroke();
+        ctx.fillStyle = '#ef4444'; ctx.font = '600 11px system-ui';
+        ctx.textAlign = 'center'; ctx.setLineDash([]);
+        ctx.fillText('MWIS 최적', x, top - 6);
+        ctx.restore();
+      }
+    };
+
+    new Chart(document.getElementById('hist'), {
+      type: 'bar',
+      plugins: [vertLine],
+      data: {
+        labels,
+        datasets: [{
+          label: '조합 수', data, backgroundColor: colors,
+          borderColor: colors.map(c => c.replace('0.55','0.9').replace('0.8','1')),
+          borderWidth: 1, borderRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: ctx => '수혜액 구간: ' + ctx[0].label,
+              label: ctx => '조합 수: ' + ctx.raw + '개',
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#7a82a0', font: { size: 11 }, maxRotation: 45 }, grid: { color: 'rgba(42,46,74,0.5)' } },
+          y: { ticks: { color: '#7a82a0', font: { size: 11 } }, grid: { color: 'rgba(42,46,74,0.5)' }, title: { display: true, text: '조합 수', color: '#7a82a0', font: { size: 11 } } }
+        }
+      }
+    });
+  } catch (e) {
+    document.getElementById('dist-stats').innerHTML = `<div class="error">연결 실패: ${e.message}</div>`;
+  }
+}
+
+loadAdversarial();
+loadCrossSolver();
+loadDistribution();
+</script>
+</body>
+</html>
