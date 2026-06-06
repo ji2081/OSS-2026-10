@@ -6,34 +6,45 @@ import "./LoginPage.css";
 
 // 데모용 정책 데이터 (로그인 페이지 애니메이션용)
 const DEMO_POLICIES = [
-  { id: 1, name: "청년수당", category: "living", selected: true },
-  { id: 2, name: "월세지원(국토부)", category: "housing", selected: true },
-  { id: 3, name: "월세지원(서울시)", category: "housing", selected: false },
-  { id: 4, name: "내일채움공제", category: "employment", selected: true },
-  { id: 5, name: "국민취업지원", category: "employment", selected: false },
-  { id: 6, name: "희망두배적금", category: "finance", selected: true },
-  { id: 7, name: "청년내일저축", category: "finance", selected: false },
-  { id: 8, name: "K-패스", category: "transport", selected: true },
-  { id: 9, name: "교통비지원", category: "transport", selected: false },
-  { id: 10, name: "문화누리카드", category: "culture", selected: true },
-  { id: 11, name: "마음건강바우처", category: "health", selected: true },
-  { id: 12, name: "도약계좌", category: "finance", selected: false },
-  { id: 13, name: "전세자금대출", category: "housing", selected: false },
-  { id: 14, name: "취업성공패키지", category: "employment", selected: false },
-  { id: 15, name: "청년문화패스", category: "culture", selected: false },
-  { id: 16, name: "생활용품지원", category: "welfare", selected: false },
-  { id: 17, name: "건강검진지원", category: "health", selected: false },
-  { id: 18, name: "시험응시료", category: "employment", selected: true },
+  // 선택됨 (컬러)
+  { id: 1, name: "국가장학금 I유형", category: "education", selected: true },
+  { id: 2, name: "국가우수(이공계)", category: "education", selected: true },
+  { id: 3, name: "국민취업지원제도", category: "employment", selected: true },
+  { id: 4, name: "국민내일배움카드", category: "education", selected: true },
+  { id: 5, name: "청년내일저축계좌", category: "finance", selected: true },
+  { id: 6, name: "청년주거급여분리", category: "housing", selected: true },
+  { id: 7, name: "가족돌봄자기돌봄", category: "welfare", selected: true },
+  { id: 8, name: "모두의카드(K-패스)", category: "transport", selected: true },
+  // 미선택 (회색) — 배타로 제외
+  { id: 9, name: "인문100년장학금", category: "education", selected: false },
+  { id: 10, name: "희망사다리장학금", category: "education", selected: false },
+  { id: 11, name: "청년도약계좌", category: "finance", selected: false },
+  { id: 12, name: "청년미래적금", category: "finance", selected: false },
+  { id: 13, name: "희망두배청년통장", category: "finance", selected: false },
+  { id: 14, name: "희망저축계좌I", category: "finance", selected: false },
+  { id: 15, name: "주거급여(맞춤형)", category: "housing", selected: false },
 ];
 
 const DEMO_EXCLUSIONS = [
-  [2, 3], [4, 5], [6, 7], [6, 12], [7, 12], [8, 9], [1, 14], [10, 15], [11, 17],
+  [2, 9],   // 국가우수(이공) ↔ 인문100년
+  [1, 10],  // 국가장학금I ↔ 희망사다리
+  [5, 11],  // 내일저축 ↔ 도약계좌
+  [5, 12],  // 내일저축 ↔ 미래적금
+  [5, 13],  // 내일저축 ↔ 희망두배
+  [5, 14],  // 내일저축 ↔ 희망저축I
+  [11, 12], // 도약계좌 ↔ 미래적금
+  [11, 13], // 도약계좌 ↔ 희망두배
+  [11, 14], // 도약계좌 ↔ 희망저축I
+  [12, 13], // 미래적금 ↔ 희망두배
+  [13, 14], // 희망두배 ↔ 희망저축I
+  [6, 15],  // 주거급여분리 ↔ 맞춤형
+  [7, 13],  // 가족돌봄 ↔ 희망두배
 ];
 
 const COLORS = {
   living: "#E53935", housing: "#43A047", employment: "#FB8C00",
   finance: "#007AFF", transport: "#8E24AA", culture: "#FF375F",
-  health: "#00BCD4", welfare: "#5AC8FA",
+  health: "#00BCD4", welfare: "#5AC8FA", education: "#FB8C00",
 };
 
 function LoginPage({ onLogin }) {

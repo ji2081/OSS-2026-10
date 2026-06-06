@@ -1,319 +1,27 @@
 import { useRef, useEffect, useState } from "react";
-import * as d3 from "d3";
 import "./ExclusionGraphPage.css";
 
 const CATEGORY_COLORS = {
-  housing: "#43A047",
-  realestate: "#43A047",
-  employment: "#FB8C00",
-  education: "#FB8C00",
-  finance: "#007AFF",
-  asset: "#007AFF",
-  culture: "#FF375F",
-  health: "#00BCD4",
-  welfare: "#5AC8FA",
-  transport: "#8E24AA",
-  startup: "#FB8C00",
-  living: "#E53935",
-  military: "#78909C",
+  housing: "#43A047", realestate: "#43A047", employment: "#FB8C00",
+  education: "#FB8C00", finance: "#007AFF", asset: "#007AFF",
+  culture: "#FF375F", health: "#00BCD4", welfare: "#5AC8FA",
+  transport: "#8E24AA", startup: "#FB8C00", living: "#E53935", military: "#78909C",
 };
 
 function ExclusionGraphPage({ subsidies, selectedSubsidies, hasOptimized }) {
-  const svgRef = useRef(null);
   const containerRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
+  const [hoveredId, setHoveredId] = useState(null);
+  const [dims, setDims] = useState({ w: 1000, h: 650 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const obs = new ResizeObserver(() => {
-      setDimensions({ width: el.offsetWidth || 900, height: Math.max(el.offsetHeight, 550) });
-    });
+    const obs = new ResizeObserver(() => setDims({ w: el.offsetWidth || 1000, h: 650 }));
     obs.observe(el);
-    setDimensions({ width: el.offsetWidth || 900, height: Math.max(el.offsetHeight, 550) });
+    setDims({ w: el.offsetWidth || 1000, h: 650 });
     return () => obs.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (!subsidies || subsidies.length === 0) return;
-
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
-
-    const { width, height } = dimensions;
-
-    const nodes = subsidies.map((s) => ({
-      id: s.id,
-      name: s.name,
-      category: s.category,
-      amount: s.amount || 0,
-      isSelected: !!selectedSubsidies?.[s.id],
-      exclusive_with: s.exclusive_with || [],
-      provider: s.provider,
-      description: s.description,
-      apply_start: s.apply_start,
-      apply_end: s.apply_end,
-      type: s.type,
-      source_url: s.source_url,
-    }));
-
-    const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = [];
-    const linkSet = new Set();
-    nodes.forEach((node) => {
-      (node.exclusive_with || []).forEach((targetId) => {
-        if (nodeIds.has(targetId)) {
-          const key = [node.id, targetId].sort().join("-");
-          if (!linkSet.has(key)) {
-            linkSet.add(key);
-            links.push({ source: node.id, target: targetId });
-          }
-        }
-      });
-    });
-
-    const simulation = d3
-      .forceSimulation(nodes)
-      .force(
-        "link",
-        d3.forceLink(links).id((d) => d.id).distance(200)
-      )
-      .force("charge", d3.forceManyBody().strength(-500))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius((d) => (d.isSelected ? 55 : 40)));
-
-    const g = svg.append("g");
-
-    const zoom = d3.zoom().scaleExtent([0.2, 3]).on("zoom", (event) => {
-      g.attr("transform", event.transform);
-    });
-    svg.call(zoom);
-
-    // 간선
-    const link = g
-      .append("g")
-      .selectAll("line")
-      .data(links)
-      .enter()
-      .append("line")
-      .attr("stroke", "#E53935")
-      .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", "6,4")
-      .attr("opacity", 0.3);
-
-    // 간선 위 X 표시
-    const linkLabels = g
-      .append("g")
-      .selectAll("text")
-      .data(links)
-      .enter()
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("font-size", "12px")
-      .attr("fill", "#E53935")
-      .attr("opacity", 0.4)
-      .text("✕");
-
-    // 노드 그룹
-    const node = g
-      .append("g")
-      .selectAll("g")
-      .data(nodes)
-      .enter()
-      .append("g")
-      .attr("class", "graph-node")
-      .attr("cursor", "pointer")
-      .call(
-        d3.drag()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          })
-      );
-
-    // 노드 외곽 글로우 (선택된 것만)
-    node
-      .filter((d) => d.isSelected)
-      .append("circle")
-      .attr("r", 48)
-      .attr("fill", "none")
-      .attr("stroke", (d) => CATEGORY_COLORS[d.category] || "#666")
-      .attr("stroke-width", 2)
-      .attr("opacity", 0.2)
-      .attr("class", "node-glow");
-
-    // 노드 원형
-    node
-      .append("circle")
-      .attr("r", (d) => (d.isSelected ? 40 : 28))
-      .attr("fill", (d) =>
-        d.isSelected ? CATEGORY_COLORS[d.category] || "#666" : "#888"
-      )
-      .attr("stroke", (d) => (d.isSelected ? "#fff" : "#aaa"))
-      .attr("stroke-width", (d) => (d.isSelected ? 3 : 1.5))
-      .attr("opacity", (d) => (d.isSelected ? 1 : 0.4))
-      .attr("class", "node-circle");
-
-    // 선택 체크 표시
-    node
-      .filter((d) => d.isSelected)
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", "-12px")
-      .attr("font-size", "16px")
-      .text("✓")
-      .attr("fill", "#fff")
-      .attr("class", "node-check");
-
-    // 노드 이름
-    node
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", (d) => (d.isSelected ? "6px" : "4px"))
-      .attr("font-size", (d) => (d.isSelected ? "11px" : "9px"))
-      .attr("font-weight", (d) => (d.isSelected ? "600" : "400"))
-      .attr("fill", (d) => (d.isSelected ? "#fff" : "#999"))
-      .text((d) => (d.name.length > 7 ? d.name.slice(0, 7) + ".." : d.name))
-      .attr("class", "node-label");
-
-    // 금액 (선택된 것만)
-    node
-      .filter((d) => d.isSelected && d.amount > 0)
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", "22px")
-      .attr("font-size", "8px")
-      .attr("fill", "#fff")
-      .attr("opacity", 0.7)
-      .text((d) => `${d.amount.toLocaleString()}만원`)
-      .attr("class", "node-amount");
-
-    // ── 호버 인터랙션 ──
-    node
-      .on("mouseover", function (event, d) {
-        const exclusionIds = new Set(d.exclusive_with || []);
-        exclusionIds.add(d.id);
-
-        // 배타 관계 노드 → 빨간 테두리
-        d3.selectAll(".node-circle")
-          .transition().duration(200)
-          .attr("opacity", (n) => {
-            if (n.id === d.id) return 1;
-            if (exclusionIds.has(n.id)) return 0.9;
-            return 0.1;
-          })
-          .attr("stroke", (n) => {
-            if (n.id === d.id) return "#fff";
-            if (exclusionIds.has(n.id)) return "#E53935";
-            return n.isSelected ? "#fff" : "#aaa";
-          })
-          .attr("stroke-width", (n) => {
-            if (exclusionIds.has(n.id) && n.id !== d.id) return 4;
-            return n.isSelected ? 3 : 1.5;
-          });
-
-        // 글로우도
-        d3.selectAll(".node-glow")
-          .transition().duration(200)
-          .attr("opacity", (n) => exclusionIds.has(n.id) ? 0.3 : 0.05);
-
-        // 라벨
-        d3.selectAll(".node-label")
-          .transition().duration(200)
-          .attr("opacity", (n) => exclusionIds.has(n.id) ? 1 : 0.15);
-
-        d3.selectAll(".node-check")
-          .transition().duration(200)
-          .attr("opacity", (n) => exclusionIds.has(n.id) ? 1 : 0.15);
-
-        d3.selectAll(".node-amount")
-          .transition().duration(200)
-          .attr("opacity", (n) => exclusionIds.has(n.id) ? 0.8 : 0.05);
-
-        // 간선 하이라이트
-        link
-          .transition().duration(200)
-          .attr("opacity", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? 0.8 : 0.05
-          )
-          .attr("stroke-width", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? 3 : 1
-          );
-
-        linkLabels
-          .transition().duration(200)
-          .attr("opacity", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? 1 : 0.05
-          )
-          .attr("font-size", (l) =>
-            l.source.id === d.id || l.target.id === d.id ? "16px" : "12px"
-          );
-      })
-      .on("mouseout", function () {
-        d3.selectAll(".node-circle")
-          .transition().duration(300)
-          .attr("opacity", (d) => (d.isSelected ? 1 : 0.4))
-          .attr("stroke", (d) => (d.isSelected ? "#fff" : "#aaa"))
-          .attr("stroke-width", (d) => (d.isSelected ? 3 : 1.5));
-
-        d3.selectAll(".node-glow")
-          .transition().duration(300)
-          .attr("opacity", 0.2);
-
-        d3.selectAll(".node-label")
-          .transition().duration(300)
-          .attr("opacity", 1);
-
-        d3.selectAll(".node-check")
-          .transition().duration(300)
-          .attr("opacity", 1);
-
-        d3.selectAll(".node-amount")
-          .transition().duration(300)
-          .attr("opacity", 0.7);
-
-        link
-          .transition().duration(300)
-          .attr("opacity", 0.3)
-          .attr("stroke-width", 1.5);
-
-        linkLabels
-          .transition().duration(300)
-          .attr("opacity", 0.4)
-          .attr("font-size", "12px");
-      })
-      .on("click", function (event, d) {
-        setSelectedNode((prev) => (prev?.id === d.id ? null : d));
-      });
-
-    // Tick
-    simulation.on("tick", () => {
-      link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
-
-      linkLabels
-        .attr("x", (d) => (d.source.x + d.target.x) / 2)
-        .attr("y", (d) => (d.source.y + d.target.y) / 2);
-
-      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
-    });
-
-    return () => simulation.stop();
-  }, [subsidies, selectedSubsidies, dimensions]);
 
   if (!hasOptimized || !subsidies || subsidies.length === 0) {
     return (
@@ -327,67 +35,194 @@ function ExclusionGraphPage({ subsidies, selectedSubsidies, hasOptimized }) {
     );
   }
 
-  const totalExclusions = new Set();
-  subsidies.forEach((s) =>
-    (s.exclusive_with || []).forEach((id) => {
-      const key = [s.id, id].sort().join("-");
-      totalExclusions.add(key);
-    })
-  );
+  const { w, h } = dims;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // 선택된 것 / 미선택 분리
+  const selectedList = subsidies.filter((s) => selectedSubsidies?.[s.id]);
+  const unselectedList = subsidies.filter((s) => !selectedSubsidies?.[s.id]);
+
+  // 선택된 노드: 안쪽 원 (중앙 가까이)
+  const innerRadius = Math.min(w, h) * 0.2;
+  const selectedNodes = selectedList.map((s, i) => {
+    const angle = (2 * Math.PI * i) / selectedList.length - Math.PI / 2;
+    return {
+      ...s, isSelected: true,
+      x: cx + innerRadius * Math.cos(angle),
+      y: cy + innerRadius * Math.sin(angle),
+      r: 38,
+    };
+  });
+
+  // 미선택 노드: 바깥쪽 원
+  const outerRadius = Math.min(w, h) * 0.42;
+  const unselectedNodes = unselectedList.map((s, i) => {
+    const angle = (2 * Math.PI * i) / unselectedList.length - Math.PI / 2;
+    return {
+      ...s, isSelected: false,
+      x: cx + outerRadius * Math.cos(angle),
+      y: cy + outerRadius * Math.sin(angle),
+      r: 20,
+    };
+  });
+
+  const nodes = [...selectedNodes, ...unselectedNodes];
+  const nodeMap = {};
+  nodes.forEach((n) => { nodeMap[n.id] = n; });
+
+  // 간선
+  const links = [];
+  const linkSet = new Set();
+  nodes.forEach((n) => {
+    (n.exclusive_with || []).forEach((tid) => {
+      if (nodeMap[tid]) {
+        const key = [n.id, tid].sort().join("-");
+        if (!linkSet.has(key)) { linkSet.add(key); links.push({ s: n, t: nodeMap[tid] }); }
+      }
+    });
+  });
+
+  // 호버 관련
+  const hoveredExIds = new Set();
+  if (hoveredId) {
+    hoveredExIds.add(hoveredId);
+    const hNode = nodeMap[hoveredId];
+    if (hNode) (hNode.exclusive_with || []).forEach((id) => hoveredExIds.add(id));
+  }
+
+  const getNodeOpacity = (n) => {
+    if (!hoveredId) return n.isSelected ? 1 : 0.5;
+    if (n.id === hoveredId) return 1;
+    if (hoveredExIds.has(n.id)) return 0.9;
+    return 0.06;
+  };
+
+  const getLabelOpacity = (n) => {
+    if (!hoveredId) return n.isSelected ? 1 : 0.7;
+    if (hoveredExIds.has(n.id)) return 1;
+    return 0.06;
+  };
+
+  const getLinkOpacity = (l) => {
+    if (!hoveredId) return 0.2;
+    if (l.s.id === hoveredId || l.t.id === hoveredId) return 0.8;
+    return 0.03;
+  };
+
+  const getLinkWidth = (l) => {
+    if (!hoveredId) return 1.5;
+    if (l.s.id === hoveredId || l.t.id === hoveredId) return 2.5;
+    return 1;
+  };
 
   return (
     <div className="graph-page">
       <div className="graph-header">
         <div>
           <h2>배타 관계 그래프</h2>
-          <p className="graph-subtitle">
-            정책 간 중복 수급 불가 관계를 시각화합니다. 노드를 드래그하거나 호버해보세요.
-          </p>
+          <p className="graph-subtitle">안쪽 = 최적 선택 정책, 바깥쪽 = 미선택 정책. 노드를 호버해보세요.</p>
         </div>
         <div className="graph-stats">
-          <div className="gstat">
-            <span className="gstat-num">{subsidies.length}</span>
-            <span className="gstat-label">정책</span>
-          </div>
-          <div className="gstat">
-            <span className="gstat-num">{totalExclusions.size}</span>
-            <span className="gstat-label">배타 관계</span>
-          </div>
-          <div className="gstat">
-            <span className="gstat-num">
-              {subsidies.filter((s) => selectedSubsidies?.[s.id]).length}
-            </span>
-            <span className="gstat-label">선택됨</span>
-          </div>
+          <div className="gstat"><span className="gstat-num">{subsidies.length}</span><span className="gstat-label">정책</span></div>
+          <div className="gstat"><span className="gstat-num">{linkSet.size}</span><span className="gstat-label">배타 관계</span></div>
+          <div className="gstat"><span className="gstat-num">{selectedList.length}</span><span className="gstat-label">선택됨</span></div>
         </div>
       </div>
 
       <div className="graph-legend">
-        <div className="legend-item">
-          <span className="legend-circle selected" />
-          <span>MWIS 선택 (컬러)</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-circle unselected" />
-          <span>미선택 (흑백)</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-line" />
-          <span>배타 관계 (중복 불가)</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-hover-icon">◎</span>
-          <span>호버 시 배타 정책 빨간 표시</span>
-        </div>
+        <div className="legend-item"><span className="legend-circle selected" /><span>최적 선택 (안쪽)</span></div>
+        <div className="legend-item"><span className="legend-circle unselected" /><span>미선택 (바깥쪽)</span></div>
+        <div className="legend-item"><span className="legend-line" /><span>중복 수급 불가</span></div>
       </div>
 
       <div className="graph-container" ref={containerRef}>
-        <svg
-          ref={svgRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          className="graph-svg"
-        />
+        <svg width={w} height={h} className="graph-svg" onMouseLeave={() => setHoveredId(null)}>
+
+          {/* 간선 */}
+          {links.map((l, i) => {
+            const midX = (l.s.x + l.t.x) / 2;
+            const midY = (l.s.y + l.t.y) / 2;
+            const isActive = hoveredId && (l.s.id === hoveredId || l.t.id === hoveredId);
+            return (
+              <g key={`link-${i}`}>
+                <line
+                  x1={l.s.x} y1={l.s.y} x2={l.t.x} y2={l.t.y}
+                  stroke="#E53935" strokeWidth={getLinkWidth(l)}
+                  strokeDasharray="8,5" opacity={getLinkOpacity(l)}
+                  style={{ transition: "all 0.25s ease" }}
+                />
+                <text x={midX} y={midY} textAnchor="middle" dominantBaseline="central"
+                  fontSize={isActive ? "14px" : "10px"} fill="#E53935"
+                  opacity={getLinkOpacity(l)} fontWeight="bold"
+                  style={{ transition: "all 0.25s ease" }}
+                >✕</text>
+              </g>
+            );
+          })}
+
+          {/* 미선택 노드 (뒤에 렌더) */}
+          {unselectedNodes.map((n) => (
+            <g key={n.id} onMouseEnter={() => setHoveredId(n.id)}
+              onClick={() => setSelectedNode(selectedNode?.id === n.id ? null : n)}
+              style={{ cursor: "pointer" }}>
+              <circle cx={n.x} cy={n.y} r={n.r}
+                fill="#D0D0D0" stroke="none"
+                opacity={getNodeOpacity(n)}
+                style={{ transition: "all 0.25s ease" }}
+              />
+              {/* 호버시 배타 대상이면 빨간 점선 테두리 */}
+              {hoveredId && hoveredExIds.has(n.id) && n.id !== hoveredId && (
+                <circle cx={n.x} cy={n.y} r={n.r + 4}
+                  fill="none" stroke="#E53935" strokeWidth={2.5}
+                  strokeDasharray="4,3" opacity={0.9}
+                />
+              )}
+              <text x={n.x} y={n.y + 3} textAnchor="middle" fontSize="8px"
+                fill="#555" fontWeight="400" opacity={getLabelOpacity(n)}
+                style={{ transition: "opacity 0.25s ease", pointerEvents: "none" }}
+              >{n.name.length > 6 ? n.name.slice(0, 6) + ".." : n.name}</text>
+            </g>
+          ))}
+
+          {/* 선택된 노드 (앞에 렌더) */}
+          {selectedNodes.map((n) => (
+            <g key={n.id} onMouseEnter={() => setHoveredId(n.id)}
+              onClick={() => setSelectedNode(selectedNode?.id === n.id ? null : n)}
+              style={{ cursor: "pointer" }}>
+              {/* 글로우 */}
+              <circle cx={n.x} cy={n.y} r={n.r + 10}
+                fill="none" stroke={CATEGORY_COLORS[n.category] || "#666"}
+                strokeWidth={2} opacity={hoveredId ? (hoveredExIds.has(n.id) ? 0.4 : 0.08) : 0.25}
+                style={{ transition: "all 0.25s ease" }}
+              />
+              {/* 메인 원 */}
+              <circle cx={n.x} cy={n.y} r={n.r}
+                fill={CATEGORY_COLORS[n.category] || "#666"}
+                stroke="#fff" strokeWidth={3}
+                opacity={getNodeOpacity(n)}
+                style={{ transition: "all 0.25s ease" }}
+              />
+              {/* 체크 */}
+              <text x={n.x} y={n.y - 12} textAnchor="middle" fontSize="14px" fill="#fff"
+                opacity={getLabelOpacity(n)}
+                style={{ transition: "opacity 0.25s ease", pointerEvents: "none" }}
+              >✓</text>
+              {/* 이름 */}
+              <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize="10px"
+                fill="#fff" fontWeight="600" opacity={getLabelOpacity(n)}
+                style={{ transition: "opacity 0.25s ease", pointerEvents: "none" }}
+              >{n.name.length > 7 ? n.name.slice(0, 7) + ".." : n.name}</text>
+              {/* 금액 */}
+              {n.amount > 0 && (
+                <text x={n.x} y={n.y + 20} textAnchor="middle" fontSize="8px"
+                  fill="#fff" opacity={hoveredId ? (hoveredExIds.has(n.id) ? 0.8 : 0.05) : 0.7}
+                  style={{ transition: "opacity 0.25s ease", pointerEvents: "none" }}
+                >{n.amount.toLocaleString()}만원</text>
+              )}
+            </g>
+          ))}
+        </svg>
       </div>
 
       {/* 상세 패널 */}
@@ -395,46 +230,23 @@ function ExclusionGraphPage({ subsidies, selectedSubsidies, hasOptimized }) {
         <div className="graph-detail-overlay" onClick={() => setSelectedNode(null)}>
           <div className="graph-detail-panel" onClick={(e) => e.stopPropagation()}>
             <button className="gdp-close" onClick={() => setSelectedNode(null)}>✕</button>
-            <div
-              className="gdp-dot"
-              style={{
-                background: selectedNode.isSelected
-                  ? CATEGORY_COLORS[selectedNode.category] || "#666"
-                  : "#888",
-              }}
-            />
+            <div className="gdp-dot" style={{ background: selectedNode.isSelected ? CATEGORY_COLORS[selectedNode.category] || "#666" : "#D0D0D0" }} />
             <h3 className="gdp-title">{selectedNode.name}</h3>
             <div className="gdp-status">
-              {selectedNode.isSelected
-                ? <span className="gdp-badge selected">✓ 최적 조합에 포함</span>
-                : <span className="gdp-badge excluded">미선택</span>
-              }
+              {selectedNode.isSelected ? <span className="gdp-badge selected">✓ 최적 조합에 포함</span> : <span className="gdp-badge excluded">미선택 (배타 관계로 제외)</span>}
             </div>
             <p className="gdp-provider">{selectedNode.provider}</p>
-            {selectedNode.amount > 0 && (
-              <div className="gdp-amount">{selectedNode.amount.toLocaleString()}만원</div>
-            )}
+            {selectedNode.amount > 0 && <div className="gdp-amount">{selectedNode.amount.toLocaleString()}만원</div>}
             <p className="gdp-desc">{selectedNode.description}</p>
-            {selectedNode.apply_start && (
-              <div className="gdp-period">
-                신청 기간: {selectedNode.apply_start} ~ {selectedNode.apply_end || "미정"}
-              </div>
-            )}
-            {selectedNode.exclusive_with.length > 0 && (
+            {selectedNode.apply_start && <div className="gdp-period">신청 기간: {selectedNode.apply_start} ~ {selectedNode.apply_end || "미정"}</div>}
+            {(selectedNode.exclusive_with || []).length > 0 && (
               <div className="gdp-conflicts">
                 <span className="gdp-conflicts-title">⚠️ 중복 수급 불가 정책</span>
                 {selectedNode.exclusive_with.map((id) => {
                   const target = subsidies.find((s) => s.id === id);
                   return target ? (
                     <div key={id} className="gdp-conflict-item">
-                      <span
-                        className="gdp-conflict-dot"
-                        style={{
-                          background: selectedSubsidies?.[id]
-                            ? CATEGORY_COLORS[target.category] || "#666"
-                            : "#888",
-                        }}
-                      />
+                      <span className="gdp-conflict-dot" style={{ background: selectedSubsidies?.[id] ? CATEGORY_COLORS[target.category] || "#666" : "#D0D0D0" }} />
                       <span>{target.name}</span>
                       {selectedSubsidies?.[id] && <span className="gdp-conflict-selected">선택됨</span>}
                     </div>
@@ -443,9 +255,7 @@ function ExclusionGraphPage({ subsidies, selectedSubsidies, hasOptimized }) {
               </div>
             )}
             {selectedNode.source_url && (
-              <a href={selectedNode.source_url} target="_blank" rel="noopener noreferrer" className="gdp-apply-btn">
-                신청 페이지 →
-              </a>
+              <a href={selectedNode.source_url} target="_blank" rel="noopener noreferrer" className="gdp-apply-btn">신청 페이지 →</a>
             )}
           </div>
         </div>
