@@ -69,6 +69,8 @@ function DashboardPage({ userName, onLogout }) {
   const [hasOptimized, setHasOptimized] = useState(false);
   const [extraBenefits, setExtraBenefits] = useState([]);
   const [recommendedSelections, setRecommendedSelections] = useState({});
+  const [allMappedPolicies, setAllMappedPolicies] = useState([]);
+  const [roadmapData, setRoadmapData] = useState(null);
 
   const handleOptimize = async () => {
     try {
@@ -158,8 +160,8 @@ function DashboardPage({ userName, onLogout }) {
         deadline: p.apply_end,
         duration_months:
           p.tiers && p.tiers.length > 0 ? p.tiers[0].duration_months : null,
-        situational_condition: p.situational_condition || null,    
-        });
+        situational_condition: p.situational_condition || null,
+      });
 
       const toBenefit = (p) => ({
         id: p.id,
@@ -213,6 +215,13 @@ function DashboardPage({ userName, onLogout }) {
         .map(toBenefit);
 
       setFilteredSubsidies([...mainPolicies, ...suppMain]);
+      setAllMappedPolicies([...converted, ...supplementaryConverted]);
+      console.log("allMappedPolicies:", allMappedPolicies.length);
+      console.log(
+        "exclusive_with 샘플:",
+        [...converted, ...supplementaryConverted][0]?.exclusive_with,
+      );
+      console.log("id 샘플:", [...converted, ...supplementaryConverted][0]?.id);
       setExtraBenefits([...nullAsBenefits, ...suppBenefits]);
 
       const allPolicies = [...mainPolicies, ...suppMain];
@@ -246,6 +255,32 @@ function DashboardPage({ userName, onLogout }) {
       setSelectedSubsidies(newSelections);
       setRecommendedSelections({ ...newSelections });
       setHasOptimized(true);
+
+      try {
+        const roadmapRes = await fetch(`${backendUrl}/policies/roadmap`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          body: JSON.stringify({
+            profile: {
+              age: activeCondition.age,
+              income_level:
+                activeCondition.annualIncome === 0
+                  ? null
+                  : activeCondition.annualIncome / 10000,
+              is_employed: activeCondition.isEmployed,
+              region: activeCondition.district || "서울",
+            },
+          }),
+        });
+        if (roadmapRes.ok) {
+          setRoadmapData(await roadmapRes.json());
+        }
+      } catch (e) {
+        console.warn("roadmap API 실패:", e);
+      }
 
       console.log("백엔드 추천 총액:", data.total_benefit);
     } catch (err) {
@@ -480,6 +515,7 @@ function DashboardPage({ userName, onLogout }) {
             subsidies={filteredSubsidies}
             selectedSubsidies={selectedSubsidies}
             hasOptimized={hasOptimized}
+            roadmapData={roadmapData}
           />
         </div>
       )}
@@ -495,7 +531,10 @@ function DashboardPage({ userName, onLogout }) {
 
       {currentPage === "graph" && (
         <div className="subpage-wrap">
-         <ExclusionGraphPage subsidies={filteredSubsidies} selectedSubsidies={selectedSubsidies} hasOptimized={hasOptimized} />
+          <ExclusionGraphPage
+            selectedSubsidies={selectedSubsidies}
+            hasOptimized={hasOptimized}
+          />
         </div>
       )}
     </div>

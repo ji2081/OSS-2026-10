@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory
-from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
+from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem, RoadmapRequest, RoadmapResponse, RoadmapPolicyItem, RoadmapPhase
 from database import get_db
 from models.policy import Policy
 from models.user_profile import UserProfile
@@ -180,3 +180,43 @@ def optimize_policies(
                                  for p in supplementary + unselected],
         timeline=timeline,
     )
+@router.post("/roadmap", response_model=RoadmapResponse)
+def get_roadmap(
+    request: RoadmapRequest,
+    db: Session = Depends(get_db),
+):
+    income_level = request.profile.income_level
+    mwis_candidates, _ = filter_policies(db, request.profile)
+
+    if not mwis_candidates:
+        return RoadmapResponse(phases=[])
+
+    adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
+    result = DPDFSSolver().solve(adjacency_list, weights)
+
+    selected_set = frozenset(result.selected_ids)
+    optimized = [p for p in mwis_candidates if p.id in selected_set]
+
+    phase_map = {}
+    for p in optimized:
+        cat = p.category or "기타"
+        start = _calc_start_date(p)
+        end = _calc_end_date(start, income_level, p)
+        tier = _resolve_tier(p, income_level)
+        duration = tier.duration_months if tier and tier.duration_months else 12
+        total = (tier.monthly_benefit or 0) * duration if tier else 0
+
+        if cat not in phase_map:
+            phase_map[cat] = []
+        phase_map[cat].append(RoadmapPolicyItem(
+            policy_id=p.id,
+            title=p.title,
+            category=cat,
+            benefit_start=start,
+            benefit_end=end,
+            duration_months=duration,
+            total_benefit=total,
+        ))
+
+    phases = [RoadmapPhase(label=cat, policies=items) for cat, items in phase_map.items()]
+    return RoadmapResponse(phases=phases)
