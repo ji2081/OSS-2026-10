@@ -46,19 +46,65 @@ function SubsidyList({
       .filter(Boolean);
   };
 
-  function DetailPanel({ subsidy }) {
+function DetailPanel({ subsidy }) {
     if (!subsidy) return null;
+    const conflictNames = getConflictNames(subsidy);
+
+    // 미래적금 ↔ 도약계좌 비교 텍스트
+    const isFinanceCompare = subsidy.name?.includes("미래적금") || subsidy.name?.includes("도약계좌");
+
     return (
       <div className="detail-panel">
         <p className="detail-desc">{subsidy.description}</p>
+
+        {/* situational_condition 표시 */}
+        {subsidy.situational_condition && (
+          <div className="detail-section">
+            <span className="detail-label">신청 조건</span>
+            <span className="detail-value">{subsidy.situational_condition}</span>
+          </div>
+        )}
+
+        {/* 배타조건 상세 공지 */}
+        {conflictNames.length > 0 && (
+          <div className="detail-section detail-conflict-box">
+            <span className="detail-label">⚠️ 중복 수급 불가 정책</span>
+            <ul className="detail-conflict-list">
+              {conflictNames.map((name, i) => (
+                <li key={i}>{name}</li>
+              ))}
+            </ul>
+            <p className="detail-conflict-note">위 정책과 동시에 수혜받을 수 없습니다. 하나만 선택해주세요.</p>
+          </div>
+        )}
+
+        {/* 미래적금 ↔ 도약계좌 비교 */}
+        {isFinanceCompare && (
+          <div className="detail-section detail-compare-box">
+            <span className="detail-label">📊 미래적금 vs 도약계좌 비교</span>
+            <table className="detail-compare-table">
+              <thead>
+                <tr><th></th><th>청년미래적금</th><th>청년도약계좌</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>만기</td><td>3년</td><td>5년</td></tr>
+                <tr><td>월 납입 한도</td><td>50만원</td><td>70만원</td></tr>
+                <tr><td>기여금(일반)</td><td>납입의 6%</td><td>납입의 3~6%</td></tr>
+                <tr><td>기여금(우대)</td><td>납입의 12%</td><td>-</td></tr>
+                <tr><td>최대 수령액</td><td>약 2,000만원</td><td>약 5,000만원</td></tr>
+                <tr><td>비과세</td><td>O</td><td>O</td></tr>
+              </tbody>
+            </table>
+            <p className="detail-compare-tip">💡 단기 목돈이 필요하면 미래적금, 장기 자산형성이 목표면 도약계좌가 유리합니다.</p>
+          </div>
+        )}
+
         {subsidy.documents && subsidy.documents.length > 0 && (
           <div className="detail-section">
             <span className="detail-label">필요 서류</span>
             <div className="detail-docs">
               {subsidy.documents.map((d, i) => (
-                <span key={i} className="detail-doc">
-                  {d}
-                </span>
+                <span key={i} className="detail-doc">{d}</span>
               ))}
             </div>
           </div>
@@ -73,12 +119,7 @@ function SubsidyList({
           {subsidy.source_url && (
             <div className="detail-section">
               <span className="detail-label">신청</span>
-              <a
-                href={subsidy.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="detail-link"
-              >
+              <a href={subsidy.source_url} target="_blank" rel="noopener noreferrer" className="detail-link">
                 신청 페이지 →
               </a>
             </div>

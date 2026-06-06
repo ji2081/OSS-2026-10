@@ -4,7 +4,6 @@ import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
 import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
-import GraphPage from "./GraphPage";
 import logoImg from "../logo.png";
 import "./DashboardPage.css";
 import {
@@ -159,7 +158,8 @@ function DashboardPage({ userName, onLogout }) {
         deadline: p.apply_end,
         duration_months:
           p.tiers && p.tiers.length > 0 ? p.tiers[0].duration_months : null,
-      });
+        situational_condition: p.situational_condition || null,    
+        });
 
       const toBenefit = (p) => ({
         id: p.id,
@@ -495,7 +495,7 @@ function DashboardPage({ userName, onLogout }) {
 
       {currentPage === "graph" && (
         <div className="subpage-wrap">
-          <GraphPage selectedSubsidies={selectedSubsidies} />
+         <ExclusionGraphPage subsidies={filteredSubsidies} selectedSubsidies={selectedSubsidies} hasOptimized={hasOptimized} />
         </div>
       )}
     </div>
