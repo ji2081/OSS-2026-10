@@ -114,14 +114,30 @@ function getMonthOptions(win) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
-  const selectedItems = (subsidies || []).filter(
-    (s) =>
-      selectedSubsidies?.[s.id] &&
-      (s.type === "confirmed" || s.type === "utilization") &&
-      s.amount &&
-      s.amount > 0,
-  );
+function RoadmapPage({
+  subsidies,
+  selectedSubsidies,
+  hasOptimized,
+  roadmapData,
+}) {
+  const selectedItems = roadmapData
+    ? roadmapData.phases.flatMap((phase) =>
+        phase.policies.map((p) => ({
+          id: p.policy_id,
+          name: p.title,
+          category: p.category,
+          type: "confirmed",
+          amount: Math.round(p.total_benefit / 10000),
+          apply_start: p.benefit_start?.substring(0, 7),
+          apply_end: p.benefit_end?.substring(0, 7),
+          duration_months: p.duration_months,
+          phase_label: phase.label,
+          provider: "",
+          source_url: "",
+          description: "",
+        })),
+      )
+    : [];
 
   const [visibleMonths, setVisibleMonths] = useState(24);
   const [selStart, setSelStart] = useState({});
@@ -150,7 +166,11 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
       <div className="roadmap-page">
         <div className="roadmap-empty">
           <div className="roadmap-empty-icon">📋</div>
-          <h3>먼저 최적 조합을 탐색해주세요</h3>
+          <h3>
+            {hasOptimized && !roadmapData
+              ? "환승 로드맵 계산 중..."
+              : "먼저 최적 조합을 탐색해주세요"}
+          </h3>
           <p>대시보드에서 조건을 설정하고 "최적 조합 탐색"을 눌러주세요.</p>
         </div>
       </div>
@@ -228,7 +248,7 @@ function RoadmapPage({ subsidies, selectedSubsidies, hasOptimized }) {
 
   // ── 요약 통계 ─────────────────────────────────────────────────────────────
   const totalAmount = selectedItems
-    .filter((s) => s.type === "grant" && s.amount)
+    .filter((s) => s.amount)
     .reduce((sum, s) => sum + s.amount, 0);
 
   // 💡 날짜가 있는 정책들만 뽑아서 총 수혜 기간을 계산
