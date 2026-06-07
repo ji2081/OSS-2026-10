@@ -74,20 +74,23 @@
 </header>
 
 <section>
-  <h2>① Adversarial Case</h2>
-  <p class="desc">단순 정렬 선택(Greedy)은 최적 조합을 놓친다 — finance 클러스터 실데이터 · 소득 60%</p>
-  <div id="adv"><div class="loading">데이터 로딩 중…</div></div>
-</section>
-
-<section>
-  <h2>② 교차 솔버 검증</h2>
+  <h2>① 교차 솔버 검증</h2>
   <p class="desc">전수탐색 오라클(Stage A)과 항상 동일한 최적해 — 4개 프로필 비교</p>
   <div id="cross"><div class="loading">데이터 로딩 중…</div></div>
 </section>
 
 <section>
-  <h2>③ 수혜액 분포 히스토그램</h2>
-  <p class="desc">전체 유효 조합 중 MWIS가 최대 수혜액 조합을 선택 — 25세 / 미취업 / 서울 / 소득 60%</p>
+  <h2>② 유효 조합 수혜액 분포</h2>
+  <p class="desc">전체 유효 조합 전수 열거 — MWIS가 선택한 조합이 최대 수혜액임을 증명</p>
+  <div style="margin-bottom:1rem">
+    <label style="font-size:0.85rem;color:var(--muted);margin-right:0.5rem">프로필 선택:</label>
+    <select id="profile-select" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.6rem;font-size:0.85rem">
+      <option value="0">25세 / 미취업 / 서울 / 소득 60%</option>
+      <option value="1">22세 / 미취업 / 서울 / 소득 40%</option>
+      <option value="2">28세 / 취업 / 전국 / 소득 80%</option>
+      <option value="3">26세 / 미취업 / 전국 / 소득 50%</option>
+    </select>
+  </div>
   <div id="dist-stats"></div>
   <div class="chart-wrap"><canvas id="hist"></canvas></div>
 </section>
@@ -96,79 +99,36 @@
 const BASE = 'http://localhost:8000';
 const fmt = n => Math.round(n / 10000).toLocaleString('ko-KR') + '만원';
 
-// ── ① Adversarial ──────────────────────────────────────────────
-async function loadAdversarial() {
-  const el = document.getElementById('adv');
-  try {
-    const d = await fetch(`${BASE}/verify/adversarial`).then(r => r.json());
-
-    if (!d.policies.length) {
-      el.innerHTML = '<div class="loading">finance 클러스터 데이터 없음</div>'; return;
-    }
-
-    const ga = d.greedy.total_benefit, ma = d.mwis.total_benefit;
-    const mwisWins = ma > ga, isTie = ma === ga;
-
-    const greedyClass = isTie ? 'tie' : (mwisWins ? 'loser' : 'winner');
-    const mwisClass   = isTie ? 'tie' : (mwisWins ? 'winner' : 'loser');
-    const greedyColor = isTie ? 'amber' : (mwisWins ? 'red' : 'green');
-    const mwisColor   = isTie ? 'amber' : (mwisWins ? 'green' : 'red');
-
-    el.innerHTML = `
-      <table class="adv-policies">
-        <thead><tr><th>정책명</th><th>가중치 (수혜액)</th><th>배타 관계</th></tr></thead>
-        <tbody>${d.policies.map(p => {
-          const partners = d.exclusive_edges
-            .filter(e => e[0] === p.title || e[1] === p.title)
-            .map(e => e[0] === p.title ? e[1] : e[0]);
-          return `<tr>
-            <td>${p.title}</td>
-            <td>${fmt(p.weight)}</td>
-            <td style="color:var(--muted);font-size:0.8rem">${partners.length ? partners.join(', ') : '—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-      <div class="adv-grid">
-        <div class="adv-box ${greedyClass}">
-          <h3>Greedy — 가중치 내림차순 선택</h3>
-          <div>${d.greedy.selected.map(t => `<span class="tag">${t}</span>`).join('') || '<span style="color:var(--muted)">없음</span>'}</div>
-          <div class="benefit-num ${greedyColor}">${fmt(ga)}</div>
-        </div>
-        <div class="adv-box ${mwisClass}">
-          <h3>MWIS — DPDFSSolver${mwisWins ? ' ✓ 최적해' : ''}</h3>
-          <div>${d.mwis.selected.map(t => `<span class="tag">${t}</span>`).join('') || '<span style="color:var(--muted)">없음</span>'}</div>
-          <div class="benefit-num ${mwisColor}">${fmt(ma)}</div>
-        </div>
-      </div>
-      <div class="adv-footer">
-        ${isTie
-          ? '이 데이터셋에서 Greedy와 MWIS 결과가 동일합니다. (배타 관계 구조에 따라 달라짐)'
-          : mwisWins
-            ? `⚠ Greedy 대비 MWIS <strong style="color:var(--green)">+${fmt(ma - ga)} 추가 수혜</strong> — 단순 정렬로는 최적 조합을 찾을 수 없음`
-            : `이 케이스에서는 Greedy가 더 높은 수혜액을 찾았습니다.`}
-      </div>
-    `;
-  } catch (e) {
-    el.innerHTML = `<div class="error">연결 실패: ${e.message} — 백엔드 서버가 실행 중인지 확인하세요.</div>`;
-  }
-}
-
-// ── ② Cross-Solver ─────────────────────────────────────────────
+// ── ① Cross-Solver ─────────────────────────────────────────────
 async function loadCrossSolver() {
   const el = document.getElementById('cross');
   try {
-    const rows = await fetch(`${BASE}/verify/cross-solver`).then(r => r.json());
+    const d = await fetch(`${BASE}/verify/cross-solver`).then(r => r.json());
+    const { rows, summary } = d;
     if (!rows.length) { el.innerHTML = '<div class="loading">데이터 없음</div>'; return; }
 
     const solverNames = rows[0].solvers.map(s => s.name);
-    const allMatch = rows.every(r => r.all_match);
 
     el.innerHTML = `
+      <div style="display:flex;gap:2rem;margin-bottom:1.25rem;flex-wrap:wrap">
+        <div class="stat-item">
+          <div class="stat-val" style="color:${summary.all_match ? 'var(--green)' : 'var(--red)'}">${summary.mismatch_count === 0 ? '0건' : summary.mismatch_count + '건'}</div>
+          <div class="stat-lbl">불일치</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">${summary.total_compared}</div>
+          <div class="stat-lbl">총 비교 횟수</div>
+        </div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem;padding:0.6rem 0.85rem;background:rgba(0,0,0,0.2);border-radius:6px">
+        Stage A = 전체 독립 집합 전수탐색 (2^N 탐색) → 수학적 최적해 보장. 나머지 솔버가 Stage A와 동일한 값을 내면 최적성 증명.
+      </div>
       <table>
         <thead>
           <tr>
             <th>프로필</th>
-            <th style="text-align:center">후보</th>
+            <th style="text-align:center">N</th>
+            <th style="text-align:center">탐색공간</th>
             <th style="text-align:right">최적 수혜액</th>
             ${solverNames.map(n => `<th style="text-align:right">${n}</th>`).join('')}
             <th style="text-align:center">일치</th>
@@ -176,16 +136,18 @@ async function loadCrossSolver() {
         </thead>
         <tbody>
           ${rows.map(r => {
-            const ref = r.solvers.find(s => s.name === 'Stage B');
-            const benefit = ref ? fmt(ref.benefit) : '—';
+            const refSolver = r.solvers.find(s => s.name === r.reference && !s.skipped);
+            const benefit = refSolver ? fmt(refSolver.benefit) : '—';
             return `<tr>
               <td>${r.profile}</td>
               <td style="text-align:center;color:var(--muted)">${r.n_candidates}</td>
+              <td style="text-align:center;color:var(--muted)">2^${r.n_candidates} = ${r.search_space.toLocaleString()}</td>
               <td style="text-align:right;font-weight:600">${benefit}</td>
               ${r.solvers.map(s => {
                 if (s.skipped) return `<td style="text-align:right;color:var(--muted)">생략</td>`;
                 const color = s.match ? 'var(--green)' : 'var(--red)';
-                return `<td style="text-align:right;color:${color}">${s.ms}ms</td>`;
+                const isRef = s.name === r.reference;
+                return `<td style="text-align:right;color:${color};${isRef ? 'font-weight:600' : ''}">${s.ms}ms${isRef ? ' ★' : ''}</td>`;
               }).join('')}
               <td style="text-align:center">
                 <span class="badge ${r.all_match ? 'ok' : 'fail'}">${r.all_match ? '✓ 일치' : '✗ 불일치'}</span>
@@ -194,13 +156,11 @@ async function loadCrossSolver() {
           }).join('')}
         </tbody>
       </table>
-      <div style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem">
-        ※ 수혜액 수치는 Stage B 기준. 시간 색상: <span style="color:var(--green)">초록</span> = Stage B와 일치, <span style="color:var(--red)">빨강</span> = 불일치
-      </div>
-      <div class="cross-footer ${allMatch ? 'ok' : 'fail'}">
-        ${allMatch
-          ? '✓ 전체 프로필에서 5개 솔버 최적해 일치 — 알고리즘 정확성 확인'
-          : '✗ 일부 프로필에서 불일치 발생 — 알고리즘 검토 필요'}
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:0.6rem">★ = 기준값 (전수탐색 오라클). 시간 색상: 초록 = 기준값과 일치, 빨강 = 불일치</div>
+      <div class="cross-footer ${summary.all_match ? 'ok' : 'fail'}" style="margin-top:0.75rem">
+        ${summary.all_match
+          ? `✓ ${summary.total_compared}회 비교 중 불일치 0건 — 전수탐색과 항상 동일한 최적해`
+          : `✗ ${summary.mismatch_count}건 불일치 발생 — 알고리즘 검토 필요`}
       </div>
     `;
   } catch (e) {
@@ -208,74 +168,86 @@ async function loadCrossSolver() {
   }
 }
 
-// ── ③ Distribution ─────────────────────────────────────────────
-async function loadDistribution() {
+// ── ② Distribution (산점도) ────────────────────────────────────
+let scatterChart = null;
+
+async function loadDistribution(profileIdx = 0) {
   try {
-    const d = await fetch(`${BASE}/verify/distribution`).then(r => r.json());
+    const d = await fetch(`${BASE}/verify/distribution?profile_idx=${profileIdx}`).then(r => r.json());
+    const s = d.stats || {};
+    const points = d.points || [];
 
     document.getElementById('dist-stats').innerHTML = `
       <div class="stats-row">
         <div class="stat-item"><div class="stat-val">${d.total_valid.toLocaleString()}</div><div class="stat-lbl">유효 조합 수</div></div>
         <div class="stat-item"><div class="stat-val">${d.n_candidates}</div><div class="stat-lbl">MWIS 후보 정책</div></div>
-        <div class="stat-item"><div class="stat-val" style="color:var(--red)">${fmt(d.optimal)}</div><div class="stat-lbl">MWIS 최적값</div></div>
-        <div class="stat-item"><div class="stat-val" style="color:var(--green)">100%</div><div class="stat-lbl">백분위</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--muted)">${fmt(s.mean || 0)}</div><div class="stat-lbl">평균 수혜액</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--muted)">${fmt(s.median || 0)}</div><div class="stat-lbl">중앙값</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--red)">${fmt(d.optimal)}</div><div class="stat-lbl">MWIS 최적값 (1위)</div></div>
+        <div class="stat-item"><div class="stat-val" style="color:var(--green)">${s.mean_ratio ? s.mean_ratio + '배' : '—'}</div><div class="stat-lbl">평균 대비 배율</div></div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem;padding:0.6rem 0.85rem;background:rgba(0,0,0,0.2);border-radius:6px">
+        전체 ${d.total_valid.toLocaleString()}개 유효 조합 전수 열거 — 각 점에 커서를 올리면 해당 조합의 정책 목록을 확인할 수 있습니다. <span style="color:var(--red)">빨간 점</span> = MWIS 최적 조합.
       </div>
       ${d.capped ? '<p style="font-size:0.8rem;color:var(--amber);margin-bottom:0.75rem">※ 후보 20개 초과 — 상위 20개 기준 계산</p>' : ''}
     `;
 
-    if (!d.bins.length) return;
+    if (scatterChart) { scatterChart.destroy(); scatterChart = null; }
 
-    const labels = d.bins.map(b => fmt(b.x));
-    const data   = d.bins.map(b => b.y);
-    const optIdx = d.bins.findIndex(b => b.x === d.optimal_bin);
-    const colors = d.bins.map((_, i) =>
-      i === optIdx ? 'rgba(239,68,68,0.8)' : 'rgba(59,130,246,0.55)'
-    );
+    if (!points.length) {
+      document.getElementById('dist-stats').innerHTML += '<div class="loading">해당 프로필에 매칭되는 정책이 없습니다.</div>';
+      return;
+    }
 
-    const vertLine = {
-      id: 'vertLine',
-      afterDraw(chart) {
-        if (optIdx < 0) return;
-        const ctx = chart.ctx;
-        const x   = chart.scales.x.getPixelForValue(optIdx);
-        const top = chart.scales.y.top;
-        const bot = chart.scales.y.bottom;
-        ctx.save();
-        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot);
-        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
-        ctx.setLineDash([5, 4]); ctx.stroke();
-        ctx.fillStyle = '#ef4444'; ctx.font = '600 11px system-ui';
-        ctx.textAlign = 'center'; ctx.setLineDash([]);
-        ctx.fillText('MWIS 최적', x, top - 6);
-        ctx.restore();
-      }
-    };
+    const bgColors = points.map(p => p.is_optimal ? 'rgba(239,68,68,0.95)' : 'rgba(59,130,246,0.55)');
+    const radii    = points.map(p => p.is_optimal ? 10 : 5);
 
-    new Chart(document.getElementById('hist'), {
-      type: 'bar',
-      plugins: [vertLine],
+    scatterChart = new Chart(document.getElementById('hist'), {
+      type: 'scatter',
       data: {
-        labels,
         datasets: [{
-          label: '조합 수', data, backgroundColor: colors,
-          borderColor: colors.map(c => c.replace('0.55','0.9').replace('0.8','1')),
-          borderWidth: 1, borderRadius: 3,
+          label: '유효 조합',
+          data: points.map(p => ({ x: p.x, y: Math.round(p.benefit / 10000) })),
+          backgroundColor: bgColors,
+          pointRadius: radii,
+          pointHoverRadius: radii.map(r => r + 4),
         }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
+            enabled: true,
             callbacks: {
-              title: ctx => '수혜액 구간: ' + ctx[0].label,
-              label: ctx => '조합 수: ' + ctx.raw + '개',
-            }
+              title: items => {
+                const pt = points[items[0].dataIndex];
+                return pt.is_optimal ? '★ MWIS 최적 조합' : `유효 조합 #${items[0].dataIndex + 1}`;
+              },
+              label: item => `수혜액: ${fmt(points[item.dataIndex].benefit)}`,
+              afterLabel: item => points[item.dataIndex].policies.map(p => `  · ${p}`),
+            },
+            backgroundColor: 'rgba(22,25,41,0.95)',
+            titleColor: '#e2e6f0',
+            bodyColor: '#7a82a0',
+            borderColor: '#2a2e4a',
+            borderWidth: 1,
+            padding: 12,
           }
         },
         scales: {
-          x: { ticks: { color: '#7a82a0', font: { size: 11 }, maxRotation: 45 }, grid: { color: 'rgba(42,46,74,0.5)' } },
-          y: { ticks: { color: '#7a82a0', font: { size: 11 } }, grid: { color: 'rgba(42,46,74,0.5)' }, title: { display: true, text: '조합 수', color: '#7a82a0', font: { size: 11 } } }
+          x: {
+            title: { display: true, text: '조합 인덱스 (수혜액 오름차순)', color: '#7a82a0', font: { size: 11 } },
+            ticks: { color: '#7a82a0', font: { size: 11 } },
+            grid: { color: 'rgba(42,46,74,0.5)' }
+          },
+          y: {
+            title: { display: true, text: '수혜액 (만원)', color: '#7a82a0', font: { size: 11 } },
+            ticks: { color: '#7a82a0', font: { size: 11 }, callback: v => v + '만' },
+            grid: { color: 'rgba(42,46,74,0.5)' }
+          }
         }
       }
     });
@@ -284,9 +256,12 @@ async function loadDistribution() {
   }
 }
 
-loadAdversarial();
+document.getElementById('profile-select').addEventListener('change', e => {
+  loadDistribution(parseInt(e.target.value));
+});
+
 loadCrossSolver();
-loadDistribution();
+loadDistribution(0);
 </script>
 </body>
 </html>
