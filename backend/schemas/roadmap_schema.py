@@ -15,6 +15,7 @@ class PolicyIntervalResponse(BaseModel):
     total_benefit: int
     monthly_benefit: int
     duration_months: int
+    situational_condition: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,6 +67,7 @@ class RoadmapResponse(BaseModel):
                         total_benefit=iv.total_benefit,
                         monthly_benefit=iv.monthly_benefit,
                         duration_months=iv.duration_months,
+                        situational_condition=iv.situational_condition, 
                     )
                     for iv in ph.policies
                 ],

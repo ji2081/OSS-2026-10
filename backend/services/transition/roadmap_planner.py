@@ -17,6 +17,7 @@ class PolicyInterval:
     total_benefit: int
     monthly_benefit: int
     duration_months: int
+    situational_condition: str | None = None
 
 
 @dataclass
@@ -111,6 +112,7 @@ def _make_intervals(
             total_benefit=total,
             monthly_benefit=monthly,
             duration_months=months,
+            situational_condition=p.situational_condition,
         ))
     return sorted(result, key=lambda x: x.benefit_start)
 
@@ -187,6 +189,7 @@ def plan_full_roadmap(
             total_benefit=total,
             monthly_benefit=monthly,
             duration_months=months,
+            situational_condition=p.situational_condition,
         ))
         if bend > phase1_end:
             phase1_end = bend
