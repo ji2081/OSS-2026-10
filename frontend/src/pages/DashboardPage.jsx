@@ -179,6 +179,7 @@ function DashboardPage({ userName, onLogout }) {
         provider: p.provider,
         description: p.description,
         source_url: p.source_url,
+        situational_condition: p.situational_condition || null,
         tags: [],
         period: p.apply_start
           ? { start: p.apply_start, end: p.apply_end }

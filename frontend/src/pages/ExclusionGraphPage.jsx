@@ -410,6 +410,12 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
             <p className="gdp-desc">
               {selectedNode.benefit_description || selectedNode.description}
             </p>
+
+            {selectedNode.situational_condition && (
+              <div className="gdp-period">
+                <strong>신청 조건:</strong> {selectedNode.situational_condition}
+              </div>
+            )}
             {selectedNode.apply_start && (
               <div className="gdp-period">
                 신청 기간: {selectedNode.apply_start} ~{" "}
