@@ -13,3 +13,4 @@ anyio==4.13.0
 starlette==1.0.0
 python-multipart==0.0.27
 httpx==0.28.0
+requests==2.32.3
