@@ -75,7 +75,7 @@ if __name__ == "__main__":
     print(f"[*] 그래프 생성 완료 (노드: {len(adjacency_list)}개)")
 
     solvers = [
-        # BruteForceSolver(),
+        BruteForceSolver(),
         DPDFSSolver(),
         PreprocessSolver(),
         BranchAndBoundSolver(),
