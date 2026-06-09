@@ -75,27 +75,28 @@ function DashboardPage({ userName, onLogout }) {
   const handleOptimize = async () => {
     try {
       const backendUrl = `http://${window.location.hostname}:8000`;
+
+      // income_level 한 번만 계산
+      const income_level =
+        activeCondition.annualIncome === 0
+          ? null
+          : activeCondition.annualIncome / 3077;
+
+      const profilePayload = {
+        age: activeCondition.age,
+        income_level,
+        is_employed: activeCondition.isEmployed,
+        region: "서울",
+        sub_region: activeCondition.district,
+      };
+
       const res = await fetch(`${backendUrl}/policies/optimize`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
-        body: JSON.stringify({
-          profile: {
-            age: activeCondition.age,
-            income_level:
-              activeCondition.annualIncome === 0
-                ? 0
-                : activeCondition.isBelow150Median
-                  ? 1
-                  : 2,
-            is_employed: activeCondition.isEmployed,
-            region: "서울",
-            sub_region: activeCondition.district,
-          },
-          min_confidence: 0.5,
-        }),
+        body: JSON.stringify({ profile: profilePayload, min_confidence: 0.5 }),
       });
       const data = await res.json();
       console.log("백엔드 응답:", data);
@@ -217,12 +218,6 @@ function DashboardPage({ userName, onLogout }) {
 
       setFilteredSubsidies([...mainPolicies, ...suppMain]);
       setAllMappedPolicies([...converted, ...supplementaryConverted]);
-      console.log("allMappedPolicies:", allMappedPolicies.length);
-      console.log(
-        "exclusive_with 샘플:",
-        [...converted, ...supplementaryConverted][0]?.exclusive_with,
-      );
-      console.log("id 샘플:", [...converted, ...supplementaryConverted][0]?.id);
       setExtraBenefits([...nullAsBenefits, ...suppBenefits]);
 
       const allPolicies = [...mainPolicies, ...suppMain];
@@ -257,6 +252,7 @@ function DashboardPage({ userName, onLogout }) {
       setRecommendedSelections({ ...newSelections });
       setHasOptimized(true);
 
+      // /roadmap API 호출 - 동일한 profilePayload 사용
       try {
         const roadmapRes = await fetch(`${backendUrl}/policies/roadmap`, {
           method: "POST",
@@ -264,17 +260,7 @@ function DashboardPage({ userName, onLogout }) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
-          body: JSON.stringify({
-            profile: {
-              age: activeCondition.age,
-              income_level:
-                activeCondition.annualIncome === 0
-                  ? null
-                  : activeCondition.annualIncome / 10000,
-              is_employed: activeCondition.isEmployed,
-              region: activeCondition.district || "서울",
-            },
-          }),
+          body: JSON.stringify({ profile: profilePayload }),
         });
         if (roadmapRes.ok) {
           setRoadmapData(await roadmapRes.json());
@@ -318,7 +304,6 @@ function DashboardPage({ userName, onLogout }) {
     }));
   };
 
-  // 충돌 그룹 생성 (confirmed 타입끼리만)
   const dynamicDupGroups = [];
   const processed = new Set();
   filteredSubsidies
