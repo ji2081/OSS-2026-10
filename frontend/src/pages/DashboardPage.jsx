@@ -260,7 +260,12 @@ function DashboardPage({ userName, onLogout }) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
           },
-          body: JSON.stringify({ profile: profilePayload }),
+          body: JSON.stringify({
+            profile: profilePayload,
+            selected_policy_ids: Object.keys(newSelections).filter(
+              (id) => newSelections[id],
+            ),
+          }),
         });
         if (roadmapRes.ok) {
           setRoadmapData(await roadmapRes.json());

@@ -72,6 +72,7 @@ class RoadmapPhase(BaseModel):
 
 class RoadmapRequest(BaseModel):
     profile: UserProfileRequest
+    selected_policy_ids: List[UUID] = Field(default_factory=list)
 
 class RoadmapResponse(BaseModel):
     phases: List[RoadmapPhase]

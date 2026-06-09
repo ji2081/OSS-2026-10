@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory
-from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
+from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem, RoadmapRequest, RoadmapResponse, RoadmapPolicyItem, RoadmapPhase
 from database import get_db
 from models.policy import Policy
 from models.user_profile import UserProfile
@@ -17,6 +17,7 @@ from models.result_policy import ResultPolicy
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.policy_filter import filter_policies
+from services.transition.roadmap_planner import plan_full_roadmap
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -180,3 +181,47 @@ def optimize_policies(
                                  for p in supplementary + unselected],
         timeline=timeline,
     )
+
+@router.post("/roadmap", response_model=RoadmapResponse)
+def get_roadmap(
+    request: RoadmapRequest,
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy.orm import joinedload
+    income_level = request.profile.income_level
+    mwis_ids = set(request.selected_policy_ids)
+
+    all_policies = (
+        db.query(Policy)
+        .options(joinedload(Policy.tiers))
+        .filter(Policy.is_active == True)
+        .filter(Policy.is_open_ended == False)
+        .all()
+    )
+
+    roadmap = plan_full_roadmap(
+        all_mwis_policies=all_policies,
+        mwis_ids=mwis_ids,
+        user_start=date.today(),
+        income_level=income_level,
+    )
+
+    phases = [
+        RoadmapPhase(
+            label=ph.label,
+            policies=[
+                RoadmapPolicyItem(
+                    policy_id=iv.policy_id,
+                    title=iv.title,
+                    category=iv.category,
+                    benefit_start=iv.benefit_start,
+                    benefit_end=iv.benefit_end,
+                    duration_months=iv.duration_months,
+                    total_benefit=iv.total_benefit,
+                )
+                for iv in ph.policies
+            ],
+        )
+        for ph in roadmap.phases
+    ]
+    return RoadmapResponse(phases=phases)
