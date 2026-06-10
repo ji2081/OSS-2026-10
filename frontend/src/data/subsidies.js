@@ -46,7 +46,11 @@ export const CATEGORIES = {
   health: { key: "health", label: "건강·복지", color: "#00BCD4" },
   culture: { key: "culture", label: "문화", color: "#FF375F" },
   military: { key: "military", label: "군장병", color: "#5AC8FA" },
-  education: { key: "education", label: "교육·장학", color: "#8E24AA" },
+  education: { key: "education", label: "교육", color: "#8E24AA" },
+  rights: { key: "rights", label: "권리·법률", color: "#FF6B35" },
+  scholarship: { key: "scholarship", label: "장학금", color: "#E91E63" },
+  startup: { key: "startup", label: "창업", color: "#FB8C00" },
+  welfare: { key: "welfare", label: "복지", color: "#5AC8FA" },
 };
 
 export function checkEligibility(policy, condition) {

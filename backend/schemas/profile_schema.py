@@ -57,24 +57,5 @@ class OptimizeResponse(BaseModel):
     supplementary_policies: List["PolicyResponse"]
     timeline: List[TimelineItem]
 
-class RoadmapPolicyItem(BaseModel):
-    policy_id: UUID
-    title: str
-    category: str
-    benefit_start: date
-    benefit_end: date
-    duration_months: int
-    total_benefit: int
-
-class RoadmapPhase(BaseModel):
-    label: str
-    policies: List[RoadmapPolicyItem]
-
-class RoadmapRequest(BaseModel):
-    profile: UserProfileRequest
-
-class RoadmapResponse(BaseModel):
-    phases: List[RoadmapPhase]
-
 from schemas.policy_schema import PolicyResponse
 OptimizeResponse.model_rebuild()
