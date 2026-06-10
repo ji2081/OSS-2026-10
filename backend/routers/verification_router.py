@@ -185,3 +185,81 @@ def distribution(profile_idx: int = 0, db: Session = Depends(get_db)) -> dict[st
             "mean_ratio": mean_ratio,
         }
     }
+
+
+
+# 검증 추가
+@router.get("/exhaustive")
+def exhaustive_profile_test(db: Session = Depends(get_db)) -> dict[str, Any]:
+    AGES     = list(range(19, 35))                          # 16개
+    INCOMES  = [0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5]  # 11개
+    REGIONS  = ["서울", "전국"]                             # 2개
+    EMPLOYED = [True, False]                                # 2개
+
+    total_profiles  = len(AGES) * len(INCOMES) * len(REGIONS) * len(EMPLOYED)
+    results = []
+    skipped = 0
+
+    for age in AGES:
+        for income in INCOMES:
+            for region in REGIONS:
+                for employed in EMPLOYED:
+                    profile = UserProfileRequest(
+                        age=age,
+                        income_level=income if income > 0 else None,
+                        is_employed=employed,
+                        region=region,
+                    )
+
+                    candidates, _ = filter_policies(db, profile)
+
+                    if not candidates:
+                        skipped += 1
+                        continue
+
+                    adj, w = build_graph(
+                        candidates, income_level=profile.income_level
+                    )
+                    n = len(candidates)
+
+                    r_b = DPDFSSolver().solve(adj, w)
+
+                    # BruteForce는 N <= 16만 (수학적 기준값)
+                    if n <= MAX_N_BRUTE:
+                        r_a = BruteForceSolver().solve(adj, w)
+                        solver_match = r_a.total_benefit == r_b.total_benefit
+                    else:
+                        solver_match = None  # N 너무 크면 스킵
+
+                    # 독립집합 제약 자동 검증
+                    selected = set(r_b.selected_ids)
+                    constraint_ok = all(
+                        not (adj.get(uid, set()) & selected - {uid})
+                        for uid in selected
+                    )
+
+                    if not solver_match or not constraint_ok:
+                        results.append({
+                            "profile": f"{age}세/{region}/소득{int((income or 0)*100)}%/{'취업' if employed else '미취업'}",
+                            "n": n,
+                            "solver_match": solver_match,
+                            "constraint_ok": constraint_ok,
+                            "benefit": r_b.total_benefit,
+                        })
+
+    # 실패한 것만 results에 담음
+    solver_tested  = total_profiles - skipped
+    failed_solver  = len([r for r in results if r["solver_match"] is False])
+    failed_constraint = len([r for r in results if not r["constraint_ok"]])
+
+    return {
+        "summary": {
+            "total_profiles"     : total_profiles,
+            "skipped_no_policy"  : skipped,
+            "tested"             : solver_tested,
+            "solver_failed"      : failed_solver,
+            "constraint_failed"  : failed_constraint,
+            "all_pass"           : failed_solver == 0 and failed_constraint == 0,
+        },
+        "failures": results,  # 실패한 케이스만 표시 (없으면 빈 배열)
+    }
