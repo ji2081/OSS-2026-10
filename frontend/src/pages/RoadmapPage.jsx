@@ -10,71 +10,12 @@ const ALL_CATEGORIES = {
   health: { label: "건강·복지", color: "#00BCD4" },
   culture: { label: "문화", color: "#FF375F" },
   military: { label: "군장병", color: "#5AC8FA" },
-  education: { label: "교육·장학", color: "#8E24AA" },
+  education: { label: "교육", color: "#8E24AA" },
+  rights: { label: "권리·법률", color: "#FF6B35" },
+  scholarship: { label: "장학금", color: "#E91E63" },
+  startup: { label: "창업", color: "#FB8C00" },
+  welfare: { label: "복지", color: "#5AC8FA" },
 };
-
-const APP_WINDOWS = {
-  "youth-allowance": {
-    applyStart: "2025-07",
-    applyEnd: "2025-07",
-    duration: 6,
-  },
-  "rent-support-national": {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 24,
-  },
-  "rent-support-seoul": {
-    applyStart: "2025-06",
-    applyEnd: "2025-06",
-    duration: 12,
-  },
-  "tomorrow-savings": {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 24,
-  },
-  "employment-support": {
-    applyStart: "2025-01",
-    applyEnd: "2025-06",
-    duration: 6,
-  },
-  "loan-interest": { applyStart: "2025-01", applyEnd: "2025-09", duration: 12 },
-  "exam-fee": { applyStart: "2025-01", applyEnd: "2025-12", duration: 1 },
-  "transport-support": {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 12,
-  },
-  kpass: { applyStart: "2025-01", applyEnd: "2025-12", duration: 12 },
-  "hope-savings": { applyStart: "2025-06", applyEnd: "2025-06", duration: 36 },
-  "nael-savings": { applyStart: "2025-05", applyEnd: "2025-05", duration: 36 },
-  doyak: {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 60,
-    isAlwaysOpen: true,
-  },
-  "jeonse-loan": {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 24,
-    isAlwaysOpen: true,
-  },
-  "deposit-interest": {
-    applyStart: "2025-01",
-    applyEnd: "2025-12",
-    duration: 84,
-    isAlwaysOpen: true,
-  },
-};
-
-const ONE_TIME_IDS = new Set(["exam-fee"]);
-const HANDOFFS = [
-  { from: "employment-support", to: "tomorrow-savings" },
-  { from: "rent-support-national", to: "rent-support-seoul" },
-  { from: "kpass", to: "transport-support" },
-];
 
 function dateToAbs(dateStr) {
   if (!dateStr) return 0;
@@ -90,10 +31,10 @@ function absToLabel(abs) {
   return absToYYYYMM(abs).replace("-", ".");
 }
 
-function getMonthOptions(win) {
-  if (!win) return [];
-  const startAbs = dateToAbs(win?.applyStart);
-  const endAbs = dateToAbs(win?.applyEnd);
+function getMonthOptions({ applyStart, applyEnd }) {
+  if (!applyStart || !applyEnd) return [];
+  const startAbs = dateToAbs(applyStart);
+  const endAbs = dateToAbs(applyEnd);
   const options = [];
   for (let abs = startAbs; abs <= endAbs; abs++) options.push(absToYYYYMM(abs));
   return options;
@@ -307,16 +248,13 @@ function RoadmapPage({
         <div className="gantt-left">
           <div className="gantt-th-left">정책명</div>
           {selectedItems.map((item) => {
-            const win = APP_WINDOWS[item.id];
             const options =
-              win && !win.isAlwaysOpen
-                ? getMonthOptions(win)
-                : item.apply_start && item.apply_end
-                  ? getMonthOptions({
-                      applyStart: item.apply_start,
-                      applyEnd: item.apply_end,
-                    })
-                  : [];
+              item.apply_start && item.apply_end
+                ? getMonthOptions({
+                    applyStart: item.apply_start,
+                    applyEnd: item.apply_end,
+                  })
+                : [];
             const isAlwaysOpen =
               item.is_open_ended || (!item.apply_start && !item.apply_end);
             const curStart = getStartMonth(item);
@@ -379,8 +317,6 @@ function RoadmapPage({
           {selectedItems.map((item) => {
             const bar = getBarProps(item);
             const color = ALL_CATEGORIES[item.category]?.color || "#999";
-            const handoffIn = HANDOFFS.find((h) => h.to === item.id);
-            const handoffOut = HANDOFFS.find((h) => h.from === item.id);
             return (
               <div
                 key={item.id}
@@ -397,11 +333,7 @@ function RoadmapPage({
                     }}
                   />
                 ))}
-                {handoffIn && !bar.hidden && bar.left > 24 && (
-                  <div className="handoff-in" style={{ left: bar.left - 22 }}>
-                    —›
-                  </div>
-                )}
+
                 {!bar.hidden && (
                   <div
                     className={`gantt-bar${hoveredId === item.id ? " hovered" : ""}`}
@@ -423,14 +355,6 @@ function RoadmapPage({
                   >
                     <span className="bar-label">{bar.startLabel}</span>
                     {bar.extendsRight && <span className="bar-ext">›</span>}
-                  </div>
-                )}
-                {handoffOut && !bar.hidden && !bar.extendsRight && (
-                  <div
-                    className="handoff-out"
-                    style={{ left: bar.left + bar.width + 2 }}
-                  >
-                    —›
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
@@ -71,6 +71,7 @@ function DashboardPage({ userName, onLogout }) {
   const [recommendedSelections, setRecommendedSelections] = useState({});
   const [allMappedPolicies, setAllMappedPolicies] = useState([]);
   const [roadmapData, setRoadmapData] = useState(null);
+  const [profilePayload, setProfilePayload] = useState(null);
 
   const handleOptimize = async () => {
     try {
@@ -89,6 +90,7 @@ function DashboardPage({ userName, onLogout }) {
         region: "서울",
         sub_region: activeCondition.district,
       };
+      setProfilePayload(profilePayload);
 
       const res = await fetch(`${backendUrl}/policies/optimize`, {
         method: "POST",
@@ -109,8 +111,10 @@ function DashboardPage({ userName, onLogout }) {
         health: "health",
         housing: "housing",
         military: "military",
-        welfare: "health",
-        startup: "employment",
+        rights: "rights",
+        scholarship: "scholarship",
+        startup: "startup",
+        welfare: "welfare",
       };
 
       const typeMap = {
@@ -262,9 +266,7 @@ function DashboardPage({ userName, onLogout }) {
           },
           body: JSON.stringify({
             profile: profilePayload,
-            selected_policy_ids: Object.keys(newSelections).filter(
-              (id) => newSelections[id],
-            ),
+            selected_policy_ids: data.selected_policies.map((p) => p.id),
           }),
         });
         if (roadmapRes.ok) {
@@ -308,6 +310,31 @@ function DashboardPage({ userName, onLogout }) {
       [subsidyId]: !prev[subsidyId],
     }));
   };
+
+  useEffect(() => {
+    if (currentPage !== "roadmap" || !hasOptimized || !profilePayload) return;
+    const selected = Object.keys(selectedSubsidies).filter(
+      (id) => selectedSubsidies[id],
+    );
+    if (!selected.length) return;
+    const backendUrl = `http://${window.location.hostname}:8000`;
+    fetch(`${backendUrl}/policies/roadmap`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: JSON.stringify({
+        profile: profilePayload,
+        selected_policy_ids: selected,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setRoadmapData(d);
+      })
+      .catch((e) => console.warn("roadmap 재계산 실패:", e));
+  }, [currentPage]);
 
   const dynamicDupGroups = [];
   const processed = new Set();

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from uuid import UUID
+from schemas.profile_schema import UserProfileRequest
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
@@ -84,3 +85,7 @@ class RoadmapResponse(BaseModel):
             total_benefit=roadmap.total_benefit,
             total_months=roadmap.total_months,
         )
+    
+class RoadmapRequest(BaseModel):
+        profile: UserProfileRequest
+        selected_policy_ids: list[UUID] = []    

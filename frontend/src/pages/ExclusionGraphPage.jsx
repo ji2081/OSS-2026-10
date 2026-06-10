@@ -15,8 +15,8 @@ const CATEGORY_COLORS = {
   startup: "#FB8C00",
   living: "#E53935",
   military: "#78909C",
-  scholarship: "#E91E63",
   rights: "#FF6B35",
+  scholarship: "#E91E63",
 };
 
 const CATEGORY_LABELS = {
@@ -26,10 +26,11 @@ const CATEGORY_LABELS = {
   health: "건강·복지",
   culture: "문화",
   military: "군장병",
-  education: "교육·장학",
-  scholarship: "장학",
+  education: "교육",
+  scholarship: "장학금",
   welfare: "복지",
   rights: "권리·법률",
+  startup: "창업",
 };
 
 const NODE_W = 130;

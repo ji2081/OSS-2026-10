@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory
-from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem, RoadmapRequest, RoadmapResponse, RoadmapPolicyItem, RoadmapPhase
+from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
+from schemas.roadmap_schema import RoadmapResponse, RoadmapRequest, RoadmapPhaseResponse, PolicyIntervalResponse
 from database import get_db
 from models.policy import Policy
 from models.user_profile import UserProfile
@@ -207,21 +208,31 @@ def get_roadmap(
     )
 
     phases = [
-        RoadmapPhase(
+        RoadmapPhaseResponse(
             label=ph.label,
+            phase_start=ph.phase_start,
+            phase_end=ph.phase_end,
+            total_benefit=ph.total_benefit,
             policies=[
-                RoadmapPolicyItem(
-                    policy_id=iv.policy_id,
-                    title=iv.title,
-                    category=iv.category,
-                    benefit_start=iv.benefit_start,
-                    benefit_end=iv.benefit_end,
-                    duration_months=iv.duration_months,
-                    total_benefit=iv.total_benefit,
-                )
+                PolicyIntervalResponse(
+                        policy_id=iv.policy_id,
+                        title=iv.title,
+                        category=iv.category,
+                        benefit_start=iv.benefit_start,
+                        benefit_end=iv.benefit_end,
+                        total_benefit=iv.total_benefit,
+                        monthly_benefit=iv.monthly_benefit,  # 추가
+                        duration_months=iv.duration_months,
+                        situational_condition=iv.situational_condition,
+                    )
                 for iv in ph.policies
             ],
         )
         for ph in roadmap.phases
     ]
-    return RoadmapResponse(phases=phases)
+    return RoadmapResponse(
+    phases=phases,
+    transitions=[],
+    total_benefit=sum(ph.total_benefit for ph in phases),
+    total_months=sum(iv.duration_months for ph in phases for iv in ph.policies),
+    )
