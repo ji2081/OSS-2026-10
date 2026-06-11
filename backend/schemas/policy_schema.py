@@ -68,5 +68,6 @@ class PolicyResponse(BaseModel):
     confidence: Optional[float] = 1.0
     source_url: Optional[str] = None
     tiers: List[PolicyTierResponse] = Field(default_factory=list)
+    resolved_tier: Optional[PolicyTierResponse] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -17,6 +17,7 @@ from models.result_policy import ResultPolicy
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.policy_filter import filter_policies
+from schemas.policy_schema import PolicyResponse, PolicyTierResponse, PolicyCategory
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
@@ -37,6 +38,13 @@ def _resolve_tier(policy: Policy, income_level: Optional[float]):
          if t.max_income_ratio is None or t.max_income_ratio >= income_level),
         policy.tiers[0],
     )
+
+
+def _build_policy_response(p: Policy, income_level: Optional[float]) -> PolicyResponse:
+    resp = PolicyResponse.model_validate(p)
+    tier = _resolve_tier(p, income_level)
+    resp.resolved_tier = PolicyTierResponse.model_validate(tier) if tier else None
+    return resp
 
 
 def _calc_start_date(policy: Policy) -> date:
@@ -117,12 +125,12 @@ def optimize_policies(
           f"(MWIS 후보: {len(mwis_candidates)}, 보조: {len(supplementary)})")
 
     if not mwis_candidates:
-        return OptimizeResponse(
-            total_benefit=0,
-            selected_policies=[],
-            supplementary_policies=[PolicyResponse.model_validate(p) for p in supplementary],
-            timeline=[],
-        )
+    return OptimizeResponse(
+        total_benefit=0,
+        selected_policies=[],
+        supplementary_policies=[_build_policy_response(p, income_level) for p in supplementary],
+        timeline=[],
+    )
 
     adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
 
@@ -174,9 +182,9 @@ def optimize_policies(
         raise
 
     return OptimizeResponse(
-        total_benefit=result.total_benefit,
-        selected_policies=[PolicyResponse.model_validate(p) for p in optimized],
-        supplementary_policies=[PolicyResponse.model_validate(p)
-                                 for p in supplementary + unselected],
-        timeline=timeline,
-    )
+    total_benefit=result.total_benefit,
+    selected_policies=[_build_policy_response(p, income_level) for p in optimized],
+    supplementary_policies=[_build_policy_response(p, income_level)
+                             for p in supplementary + unselected],
+    timeline=timeline,
+)

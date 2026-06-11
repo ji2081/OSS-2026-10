@@ -28,6 +28,8 @@ def filter_policies(
     if income_level is not None:
         query = query.filter(
             (Policy.income_threshold == None) | (Policy.income_threshold >= income_level)
+        ).filter(
+            (Policy.income_threshold_min == None) | (Policy.income_threshold_min <= income_level)
         )
 
     if profile.region:
