@@ -37,8 +37,11 @@ function SubsidyList({
     if (!grouped[s.category]) grouped[s.category] = [];
     grouped[s.category].push(s);
   });
-  const catOrder = Object.keys(categories);
-
+  const catOrder = Object.keys(categories).sort((a, b) => {
+    if (a === "scholarship") return -1;
+    if (b === "scholarship") return 1;
+    return 0;
+  });
   const getConflictNames = (subsidy) => {
     if (!subsidy.exclusive_with || subsidy.exclusive_with.length === 0)
       return [];
@@ -289,6 +292,11 @@ function SubsidyList({
               ></span>
               <span className="category-section-title">{label}</span>
               <span className="category-section-count">{items.length}개</span>
+              {catKey === "scholarship" && (
+                <span className="scholarship-notice">
+                  ※ 본인 조건에 해당하는 장학금을 직접 선택해주세요
+                </span>
+              )}
             </div>
             <div className="subsidy-cards">
               {items
