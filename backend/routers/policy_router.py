@@ -126,12 +126,12 @@ def optimize_policies(
           f"(MWIS 후보: {len(mwis_candidates)}, 보조: {len(supplementary)})")
 
     if not mwis_candidates:
-    return OptimizeResponse(
-        total_benefit=0,
-        selected_policies=[],
-        supplementary_policies=[_build_policy_response(p, income_level) for p in supplementary],
-        timeline=[],
-    )
+        return OptimizeResponse(
+            total_benefit=0,
+            selected_policies=[],
+            supplementary_policies=[_build_policy_response(p, income_level) for p in supplementary],
+            timeline=[],
+        )
 
     adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
 
