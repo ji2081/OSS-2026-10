@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
 
-from schemas.policy_schema import PolicyResponse, PolicyCategory
+from schemas.policy_schema import PolicyResponse, PolicyCategory, PolicyTierResponse
 from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
 from schemas.roadmap_schema import RoadmapResponse, RoadmapRequest, RoadmapPhaseResponse, PolicyIntervalResponse
 from database import get_db
@@ -18,6 +18,7 @@ from models.result_policy import ResultPolicy
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.policy_filter import filter_policies
+
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
 
