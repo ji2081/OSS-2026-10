@@ -70,14 +70,14 @@ function Sidebar({
           <input
             type="range"
             min="19"
-            max="34"
+            max="39"
             value={condition.age}
             onChange={(e) => onUpdateCondition("age", Number(e.target.value))}
             className="slider"
           />
           <div className="slider-labels">
             <span>만 19세</span>
-            <span>만 34세</span>
+            <span>만 39세</span>
           </div>
         </div>
 
