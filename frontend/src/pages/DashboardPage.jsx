@@ -75,7 +75,7 @@ function DashboardPage({ userName, onLogout }) {
 
   const handleOptimize = async () => {
     try {
-      const backendUrl = `http://${window.location.hostname}:8000`;
+      const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
 
       // income_level 한 번만 계산
       const income_level =
@@ -324,7 +324,7 @@ function DashboardPage({ userName, onLogout }) {
       (id) => selectedSubsidies[id],
     );
     if (!selected.length) return;
-    const backendUrl = `http://${window.location.hostname}:8000`;
+    const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
     fetch(`${backendUrl}/policies/roadmap`, {
       method: "POST",
       headers: {
