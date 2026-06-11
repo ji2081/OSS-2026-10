@@ -145,13 +145,13 @@ function DashboardPage({ userName, onLogout }) {
         category: categoryMap[p.category] || "employment",
         type: typeMap[p.benefit_type] || "selective",
         benefit_type: p.benefit_type,
-        amount:
-          p.tiers && p.tiers.length > 0
-            ? Math.round(
-                (p.tiers[0].monthly_benefit * p.tiers[0].duration_months) /
-                  10000,
-              )
-            : 0,
+        amount: p.resolved_tier
+          ? Math.round(
+              (p.resolved_tier.monthly_benefit *
+                p.resolved_tier.duration_months) /
+                10000,
+            )
+          : 0,
         apply_start: p.apply_start || null,
         apply_end: p.apply_end || null,
         is_active: p.is_active !== false,
@@ -163,8 +163,9 @@ function DashboardPage({ userName, onLogout }) {
         documents: [],
         source_url: p.source_url,
         deadline: p.apply_end,
-        duration_months:
-          p.tiers && p.tiers.length > 0 ? p.tiers[0].duration_months : null,
+        duration_months: p.resolved_tier
+          ? p.resolved_tier.duration_months
+          : null,
         situational_condition: p.situational_condition || null,
       });
 
@@ -228,20 +229,26 @@ function DashboardPage({ userName, onLogout }) {
       const newSelections = {};
 
       mainPolicies.forEach((s) => {
-        newSelections[s.id] = true;
+        newSelections[s.id] = s.category !== "scholarship";
       });
 
       suppMain.forEach((s) => {
         const hasConflict = (s.exclusive_with || []).some(
           (id) => newSelections[id],
         );
-        if (!hasConflict) {
+        if (!hasConflict && s.category !== "scholarship") {
           newSelections[s.id] = true;
         }
       });
 
       allPolicies
-        .filter((s) => s.type === "confirmed" && s.amount && s.amount > 0)
+        .filter(
+          (s) =>
+            s.type === "confirmed" &&
+            s.amount &&
+            s.amount > 0 &&
+            s.category !== "scholarship",
+        )
         .forEach((s) => {
           const hasConflictSelected = (s.exclusive_with || []).some((id) => {
             const conflictPolicy = allPolicies.find((x) => x.id === id);

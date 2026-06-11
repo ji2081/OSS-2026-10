@@ -18,6 +18,7 @@ from models.result_policy import ResultPolicy
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.policy_filter import filter_policies
+from services.transition.roadmap_planner import plan_full_roadmap
 
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
@@ -124,6 +125,7 @@ def optimize_policies(
 
     print(f"[필터링] 전체 {len(mwis_candidates) + len(supplementary)}개 "
           f"(MWIS 후보: {len(mwis_candidates)}, 보조: {len(supplementary)})")
+    
 
     if not mwis_candidates:
         return OptimizeResponse(
@@ -145,6 +147,7 @@ def optimize_policies(
     selected_set     = frozenset(result.selected_ids)
     optimized        = [p for p in mwis_candidates if p.id in selected_set]
     unselected       = [p for p in mwis_candidates if p.id not in selected_set]
+    print(f"[선택 정책] {[p.title for p in optimized]}")
 
     timeline: List[TimelineItem] = []
     for p in optimized:
