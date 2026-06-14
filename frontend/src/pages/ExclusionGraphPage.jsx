@@ -270,9 +270,7 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const backendUrl =
-          process.env.REACT_APP_API_URL ||
-          `http://${window.location.hostname}:8000`;
+        const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
         let all = [];
         let skip = 0;
         while (true) {

@@ -88,9 +88,7 @@ function DashboardPage({ userName, onLogout }) {
 
   const handleOptimize = async () => {
     try {
-      const backendUrl =
-        process.env.REACT_APP_BACKEND_URL ||
-        `http://${window.location.hostname}:8000`;
+      const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
 
       const income_level =
         activeCondition.annualIncome === 0
@@ -346,9 +344,7 @@ function DashboardPage({ userName, onLogout }) {
       (id) => selectedSubsidies[id],
     );
     if (!selected.length) return;
-    const backendUrl =
-      process.env.REACT_APP_API_URL ||
-      `http://${window.location.hostname}:8000`;
+    const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
     fetch(`${backendUrl}/policies/roadmap`, {
       method: "POST",
       headers: {
