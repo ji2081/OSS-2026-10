@@ -1,4 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import ReactFlow, {
+  useNodesState,
+  useEdgesState,
+  Handle,
+  Position,
+  StraightEdge,
+  useViewport,
+  ReactFlowProvider,
+} from "reactflow";
+import "reactflow/dist/style.css";
 import "./ExclusionGraphPage.css";
 
 const CATEGORY_COLORS = {
@@ -40,7 +50,13 @@ const ROW_GAP = 18;
 const SECTION_GAP = 40;
 const PADDING = 32;
 
-function layoutNodes(allPolicies, selectedSubsidies) {
+function buildLayout(
+  allPolicies,
+  selectedSubsidies,
+  hoveredId,
+  hoveredExIds,
+  onHover,
+) {
   const byCategory = {};
   allPolicies.forEach((s) => {
     const cat = s.category || "etc";
@@ -49,7 +65,9 @@ function layoutNodes(allPolicies, selectedSubsidies) {
   });
 
   const catKeys = Object.keys(byCategory);
-  const allNodes = [];
+  const rfNodes = [];
+  const posMap = {};
+  const categoryBounds = {};
   let x = PADDING;
   let y = PADDING;
   let rowMaxH = 0;
@@ -67,26 +85,41 @@ function layoutNodes(allPolicies, selectedSubsidies) {
       rowMaxH = 0;
     }
 
+    const catStartX = x - 10;
+    const catStartY = y - 10;
+
     items.forEach((s, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      allNodes.push({
-        ...s,
-        name: s.title || s.name,
-        amount:
-          s.tiers && s.tiers.length > 0
-            ? Math.round(
-                (s.tiers[0].monthly_benefit * s.tiers[0].duration_months) /
-                  10000,
-              )
-            : s.amount || 0,
-        exclusive_with: s.exclusive_with || [],
-        isSelected: !!selectedSubsidies?.[s.id],
-        x: x + col * (NODE_W + COL_GAP) + NODE_W / 2,
-        y: y + 28 + row * (NODE_H + ROW_GAP) + NODE_H / 2,
-        cat,
+      const px = x + col * (NODE_W + COL_GAP);
+      const py = y + 28 + row * (NODE_H + ROW_GAP);
+      posMap[s.id] = { x: px, y: py };
+      rfNodes.push({
+        id: s.id,
+        type: "policyNode",
+        position: { x: px, y: py },
+        data: {
+          label: s.title || s.name,
+          amount:
+            s.tiers && s.tiers.length > 0
+              ? Math.round(
+                  (s.tiers[0].monthly_benefit * s.tiers[0].duration_months) /
+                    10000,
+                )
+              : s.amount || 0,
+          isSelected: !!selectedSubsidies?.[s.id],
+          cat,
+          policy: s,
+          hoveredId,
+          hoveredExIds,
+          onHover,
+        },
       });
     });
+
+    const catW = cols * (NODE_W + COL_GAP) - COL_GAP + 20;
+    const catH = sHeight + 28 + 20;
+    categoryBounds[cat] = { x: catStartX, y: catStartY, w: catW, h: catH };
 
     if (idx % 2 === 0) {
       x += sectionWidth;
@@ -96,21 +129,150 @@ function layoutNodes(allPolicies, selectedSubsidies) {
     rowMaxH = Math.max(rowMaxH, sHeight + 28);
   });
 
-  const maxX = Math.max(...allNodes.map((n) => n.x)) + NODE_W / 2 + PADDING;
-  const maxY = Math.max(...allNodes.map((n) => n.y)) + NODE_H / 2 + PADDING;
+  return { rfNodes, byCategory, posMap, categoryBounds };
+}
 
-  return { nodes: allNodes, totalW: maxX, totalH: maxY, byCategory };
+function PolicyNode({ data, id }) {
+  const color = CATEGORY_COLORS[data.cat] || "#999";
+  const isConflict =
+    data.hoveredId && data.hoveredExIds?.has(id) && id !== data.hoveredId;
+  const opacity = data.hoveredId ? (data.hoveredExIds?.has(id) ? 1 : 0.15) : 1;
+  return (
+    <div
+      onMouseEnter={() => data.onHover(id)}
+      onMouseLeave={() => data.onHover(null)}
+      style={{
+        width: NODE_W,
+        height: NODE_H,
+        borderRadius: 6,
+        background: data.isSelected ? color : "#F5F5F5",
+        border: isConflict
+          ? `2.5px dashed #E53935`
+          : `1px solid ${data.isSelected ? color : "#DDD"}`,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        padding: "4px 8px",
+        boxSizing: "border-box",
+        opacity,
+      }}
+    >
+      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      {data.isSelected && (
+        <span
+          style={{
+            position: "absolute",
+            top: 4,
+            left: 8,
+            fontSize: 10,
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          ✓
+        </span>
+      )}
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: data.isSelected ? 700 : 500,
+          color: data.isSelected ? "#fff" : "#333",
+          textAlign: "center",
+          lineHeight: 1.3,
+        }}
+      >
+        {data.label.length > 9 ? data.label.slice(0, 9) + ".." : data.label}
+      </span>
+      {data.amount > 0 && (
+        <span
+          style={{
+            fontSize: 9,
+            color: data.isSelected ? "rgba(255,255,255,0.8)" : "#888",
+            marginTop: 2,
+          }}
+        >
+          {data.amount.toLocaleString()}만원
+        </span>
+      )}
+    </div>
+  );
+}
+
+const nodeTypes = { policyNode: PolicyNode };
+const edgeTypes = { default: StraightEdge };
+
+function CategoryBackground({ categoryBounds }) {
+  const { x, y, zoom } = useViewport();
+  return (
+    <svg
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    >
+      <g transform={`translate(${x},${y}) scale(${zoom})`}>
+        {Object.entries(categoryBounds).map(([cat, b]) => {
+          const color = CATEGORY_COLORS[cat] || "#999";
+          return (
+            <g key={cat}>
+              <rect
+                x={b.x}
+                y={b.y}
+                width={b.w}
+                height={b.h}
+                rx={8}
+                fill={`${color}08`}
+                stroke={`${color}22`}
+                strokeWidth={1}
+              />
+              <text
+                x={b.x + 10}
+                y={b.y + 16}
+                fontSize="11px"
+                fill={color}
+                fontWeight="600"
+                opacity={0.8}
+              >
+                {CATEGORY_LABELS[cat] || cat}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
 }
 
 function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
-  const [hoveredId, setHoveredId] = useState(null);
-  const [selectedNode, setSelectedNode] = useState(null);
   const [allPolicies, setAllPolicies] = useState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [hoveredId, setHoveredId] = useState(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [categoryBounds, setCategoryBounds] = useState({});
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.message?.includes("ResizeObserver")) e.stopImmediatePropagation();
+    };
+    window.addEventListener("error", handler);
+    return () => window.removeEventListener("error", handler);
+  }, []);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
+        const backendUrl =
+          process.env.REACT_APP_API_URL ||
+          `http://${window.location.hostname}:8000`;
         let all = [];
         let skip = 0;
         while (true) {
@@ -139,35 +301,11 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
     fetchAll();
   }, []);
 
-  const { nodes, totalW, totalH, byCategory } = useMemo(
-    () => layoutNodes(allPolicies, selectedSubsidies || {}),
-    [allPolicies, selectedSubsidies],
-  );
-
   const nodeMap = useMemo(() => {
     const m = {};
-    nodes.forEach((n) => {
-      m[n.id] = n;
-    });
+    allPolicies.forEach((p) => (m[p.id] = p));
     return m;
-  }, [nodes]);
-
-  const links = useMemo(() => {
-    const result = [];
-    const seen = new Set();
-    nodes.forEach((n) => {
-      (n.exclusive_with || []).forEach((tid) => {
-        if (nodeMap[tid]) {
-          const key = [n.id, tid].sort().join("|");
-          if (!seen.has(key)) {
-            seen.add(key);
-            result.push({ s: n, t: nodeMap[tid] });
-          }
-        }
-      });
-    });
-    return result;
-  }, [nodes, nodeMap]);
+  }, [allPolicies]);
 
   const hoveredExIds = useMemo(() => {
     const s = new Set();
@@ -177,6 +315,59 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
     if (n) (n.exclusive_with || []).forEach((id) => s.add(id));
     return s;
   }, [hoveredId, nodeMap]);
+
+  useEffect(() => {
+    if (allPolicies.length === 0) return;
+    const { rfNodes, categoryBounds: cb } = buildLayout(
+      allPolicies,
+      selectedSubsidies || {},
+      hoveredId,
+      hoveredExIds,
+      setHoveredId,
+    );
+    setNodes(rfNodes);
+    setCategoryBounds(cb);
+
+    const seen = new Set();
+    const rfEdges = [];
+    allPolicies.forEach((p) => {
+      (p.exclusive_with || []).forEach((tid) => {
+        const key = [p.id, tid].sort().join("|");
+        if (!seen.has(key) && allPolicies.find((x) => x.id === tid)) {
+          seen.add(key);
+          rfEdges.push({
+            id: key,
+            source: p.id,
+            target: tid,
+            type: "straight",
+            style: {
+              stroke: "#E53935",
+              strokeWidth:
+                hoveredId && (p.id === hoveredId || tid === hoveredId)
+                  ? 2.5
+                  : 1.5,
+              opacity: hoveredId
+                ? p.id === hoveredId || tid === hoveredId
+                  ? 0.95
+                  : 0.04
+                : 0.6,
+            },
+          });
+        }
+      });
+    });
+    setEdges(rfEdges);
+  }, [allPolicies, selectedSubsidies, hoveredId, hoveredExIds]);
+
+  const onNodeClick = useCallback(
+    (_, node) => {
+      const policy = allPolicies.find((p) => p.id === node.id);
+      setSelectedNode((prev) => (prev?.id === node.id ? null : policy));
+    },
+    [allPolicies],
+  );
+
+  const totalExclusions = useMemo(() => edges.length, [edges]);
 
   if (!hasOptimized || allPolicies.length === 0) {
     return (
@@ -194,9 +385,6 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
     );
   }
 
-  const totalExclusions = new Set();
-  links.forEach((l) => totalExclusions.add(`${l.s.id}|${l.t.id}`));
-
   return (
     <div className="graph-page">
       <div className="graph-header">
@@ -209,12 +397,12 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
             <span className="gstat-label">정책</span>
           </div>
           <div className="gstat">
-            <span className="gstat-num">{totalExclusions.size}</span>
+            <span className="gstat-num">{totalExclusions}</span>
             <span className="gstat-label">배타 관계</span>
           </div>
           <div className="gstat">
             <span className="gstat-num">
-              {nodes.filter((n) => n.isSelected).length}
+              {nodes.filter((n) => n.data?.isSelected).length}
             </span>
             <span className="gstat-label">선택됨</span>
           </div>
@@ -241,133 +429,26 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
         </div>
       </div>
 
-      <div className="graph-container eg-scroll">
-        <svg
-          width={Math.max(totalW, 800)}
-          height={totalH}
-          onMouseLeave={() => setHoveredId(null)}
-        >
-          {Object.entries(byCategory).map(([cat]) => {
-            const catNodes = nodes.filter((n) => n.cat === cat);
-            if (catNodes.length === 0) return null;
-            const xs = catNodes.map((n) => n.x);
-            const ys = catNodes.map((n) => n.y);
-            const minX = Math.min(...xs) - NODE_W / 2 - 10;
-            const minY = Math.min(...ys) - NODE_H / 2 - 28;
-            const maxX = Math.max(...xs) + NODE_W / 2 + 10;
-            const maxY = Math.max(...ys) + NODE_H / 2 + 10;
-            const color = CATEGORY_COLORS[cat] || "#999";
-            return (
-              <g key={cat}>
-                <rect
-                  x={minX}
-                  y={minY}
-                  width={maxX - minX}
-                  height={maxY - minY}
-                  rx={8}
-                  fill={`${color}08`}
-                  stroke={`${color}22`}
-                  strokeWidth={1}
-                />
-                <text
-                  x={minX + 10}
-                  y={minY + 16}
-                  fontSize="11px"
-                  fill={color}
-                  fontWeight="600"
-                  opacity={0.8}
-                >
-                  {CATEGORY_LABELS[cat] || cat}
-                </text>
-              </g>
-            );
-          })}
-
-          {links.map((l, i) => {
-            const isActive =
-              hoveredId && (l.s.id === hoveredId || l.t.id === hoveredId);
-            const opacity = hoveredId ? (isActive ? 0.95 : 0.04) : 0.6;
-            return (
-              <line
-                key={i}
-                x1={l.s.x}
-                y1={l.s.y}
-                x2={l.t.x}
-                y2={l.t.y}
-                stroke="#E53935"
-                strokeWidth={isActive ? 2.5 : 1.5}
-                opacity={opacity}
-                style={{ transition: "all 0.2s ease" }}
-              />
-            );
-          })}
-
-          {nodes.map((n) => {
-            const color = CATEGORY_COLORS[n.cat || n.category] || "#999";
-            const isConflict =
-              hoveredId && hoveredExIds.has(n.id) && n.id !== hoveredId;
-            const opacity = hoveredId ? (hoveredExIds.has(n.id) ? 1 : 0.15) : 1;
-            return (
-              <g
-                key={n.id}
-                onMouseEnter={() => setHoveredId(n.id)}
-                onClick={() =>
-                  setSelectedNode(selectedNode?.id === n.id ? null : n)
-                }
-                style={{ cursor: "pointer", transition: "opacity 0.2s ease" }}
-                opacity={opacity}
-              >
-                <rect
-                  x={n.x - NODE_W / 2}
-                  y={n.y - NODE_H / 2}
-                  width={NODE_W}
-                  height={NODE_H}
-                  rx={6}
-                  fill={n.isSelected ? color : "#F5F5F5"}
-                  stroke={
-                    isConflict ? "#E53935" : n.isSelected ? color : "#DDD"
-                  }
-                  strokeWidth={isConflict ? 2.5 : n.isSelected ? 0 : 1}
-                  strokeDasharray={isConflict ? "4,3" : "none"}
-                  style={{ transition: "all 0.2s ease" }}
-                />
-                {n.isSelected && (
-                  <text
-                    x={n.x - NODE_W / 2 + 10}
-                    y={n.y - 6}
-                    fontSize="10px"
-                    fill="rgba(255,255,255,0.7)"
-                  >
-                    ✓
-                  </text>
-                )}
-                <text
-                  x={n.x}
-                  y={n.y - 5}
-                  textAnchor="middle"
-                  fontSize="10px"
-                  fontWeight={n.isSelected ? "700" : "500"}
-                  fill={n.isSelected ? "#fff" : "#333"}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {n.name.length > 9 ? n.name.slice(0, 9) + ".." : n.name}
-                </text>
-                {n.amount > 0 && (
-                  <text
-                    x={n.x}
-                    y={n.y + 12}
-                    textAnchor="middle"
-                    fontSize="9px"
-                    fill={n.isSelected ? "rgba(255,255,255,0.8)" : "#888"}
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {n.amount.toLocaleString()}만원
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
+      <div
+        className="graph-container eg-scroll"
+        style={{ height: 600, position: "relative" }}
+      >
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            style={{ background: "transparent" }}
+            defaultEdgeOptions={{ type: "straight" }}
+          >
+            <CategoryBackground categoryBounds={categoryBounds} />
+          </ReactFlow>
+        </ReactFlowProvider>
       </div>
 
       {selectedNode && (
@@ -385,14 +466,14 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
             <div
               className="gdp-dot"
               style={{
-                background:
-                  CATEGORY_COLORS[selectedNode.cat || selectedNode.category] ||
-                  "#D0D0D0",
+                background: CATEGORY_COLORS[selectedNode.category] || "#D0D0D0",
               }}
             />
-            <h3 className="gdp-title">{selectedNode.name}</h3>
+            <h3 className="gdp-title">
+              {selectedNode.title || selectedNode.name}
+            </h3>
             <div className="gdp-status">
-              {selectedNode.isSelected ? (
+              {selectedSubsidies?.[selectedNode.id] ? (
                 <span className="gdp-badge selected">✓ 최적 조합에 포함</span>
               ) : (
                 <span className="gdp-badge excluded">
@@ -403,15 +484,9 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
             <p className="gdp-provider">
               {selectedNode.host_org || selectedNode.provider}
             </p>
-            {selectedNode.amount > 0 && (
-              <div className="gdp-amount">
-                {selectedNode.amount.toLocaleString()}만원
-              </div>
-            )}
             <p className="gdp-desc">
               {selectedNode.benefit_description || selectedNode.description}
             </p>
-
             {selectedNode.situational_condition && (
               <div className="gdp-period">
                 <strong>신청 조건:</strong> {selectedNode.situational_condition}
@@ -444,7 +519,7 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
                             CATEGORY_COLORS[target.category] || "#D0D0D0",
                         }}
                       />
-                      <span>{target.name}</span>
+                      <span>{target.title || target.name}</span>
                       {selectedSubsidies?.[id] && (
                         <span className="gdp-conflict-selected">선택됨</span>
                       )}
