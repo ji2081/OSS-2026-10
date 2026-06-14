@@ -54,7 +54,7 @@ def get_current_user(
         payload = jwt.decode(
             token,
             jwks,
-            algorithms=["ES256", "HS256"],
+            algorithms=["ES256"],
             audience="authenticated",
         )
         user_id: str | None = payload.get("sub")
@@ -62,6 +62,7 @@ def get_current_user(
             raise credentials_exception
         return UUID(user_id)
 
-    except JWTError as e:
+    except (JWTError, ValueError) as e:
         print(f"[AUTH] JWT 오류: {e}")
         raise credentials_exception
+ 
