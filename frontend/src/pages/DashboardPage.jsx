@@ -6,12 +6,7 @@ import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
 import logoImg from "../logo.png";
 import "./DashboardPage.css";
-import {
-  MOCK_SUBSIDIES,
-  DUPLICATE_GROUPS,
-  CATEGORIES,
-  checkEligibility,
-} from "../data/subsidies";
+import { CATEGORIES } from "../data/subsidies";
 import ExclusionGraphPage from "./ExclusionGraphPage";
 
 function DashboardPage({ userName, onLogout }) {
