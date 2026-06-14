@@ -23,7 +23,6 @@ def create_user_profile(
             income_level=profile_data.income_level,
             is_employed=profile_data.is_employed,
             region=profile_data.region,
-            sub_region=profile_data.sub_region
         )
 
         db.add(new_profile)
@@ -77,7 +76,6 @@ def update_user_profile(
     profile.income_level = profile_data.income_level
     profile.is_employed = profile_data.is_employed
     profile.region = profile_data.region
-    profile.sub_region = profile_data.sub_region
 
     db.commit()
     db.refresh(profile)

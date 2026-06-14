@@ -15,3 +15,4 @@ class ResultPolicy(Base):
     end_date = Column(Date)
 
     policy = relationship("Policy", primaryjoin="ResultPolicy.policy_id == Policy.id", foreign_keys=[policy_id], overlaps="optimization_results,policies")
+    result = relationship("OptimizationResult", back_populates="policies")
