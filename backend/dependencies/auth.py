@@ -12,7 +12,9 @@ from jose import jwt, JWTError
 
 security = HTTPBearer()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://gzcadtiiroufqywlsjsz.supabase.co")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+if not SUPABASE_URL:
+    raise RuntimeError("SUPABASE_URL 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 
 _JWKS_TTL_SECONDS = 86_400  # 24시간
