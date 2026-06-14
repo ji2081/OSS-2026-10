@@ -1,9 +1,0 @@
-services:
-  backend:
-    build: ./backend  # 👈 핵심 1: 백엔드 폴더(./backend)에 있는 Dockerfile을 사용해 빌드합니다.
-    container_name: youth_policy_backend
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    env_file:
-      - ./docker/.env  # 👈 핵심 2: docker 폴더 안에 있는 .env 파일을 환경 변수로 사용합니다.
