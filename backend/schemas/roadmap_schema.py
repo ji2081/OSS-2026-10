@@ -87,5 +87,5 @@ class RoadmapResponse(BaseModel):
         )
     
 class RoadmapRequest(BaseModel):
-        profile: UserProfileRequest
-        selected_policy_ids: list[UUID] = []    
+    profile: UserProfileRequest
+    selected_policy_ids: list[UUID] = []    

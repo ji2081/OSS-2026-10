@@ -1,10 +1,3 @@
-"""
-backend_check.py
-실행: backend/ 디렉토리에서 (venv 활성화 후)
-    source venv/Scripts/activate
-    python backend_check.py
-"""
-
 from __future__ import annotations
 import sys, os, json, traceback
 from datetime import date
@@ -158,12 +151,6 @@ else:
         else:
             fail(f"솔버 결과 불일치: {vals}"); results["solvers"] = False
 
-        import inspect, routers.policy_router as pr_mod
-        if "BruteForceSolver()" in inspect.getsource(pr_mod):
-            warn("policy_router.py 아직 BruteForceSolver 사용 중 → PreprocessSolver 교체 필요")
-        else:
-            ok("policy_router.py 솔버 교체 완료")
-
     except Exception as e:
         fail(f"솔버 검증 실패: {e}"); traceback.print_exc(); results["solvers"] = False
 
@@ -215,7 +202,8 @@ try:
     src = open("main.py", encoding="utf-8").read()
     for name in ["policy_router","user_router","result_router","roadmap_router"]:
         (ok if name in src else fail)(f"{name} {'등록됨' if name in src else '미등록 ← include_router 추가 필요'}")
-    results["main"] = "roadmap_router" in src
+    required = ["policy_router", "user_router", "result_router", "roadmap_router"]
+    results["main"] = all(name in src for name in required)
 except Exception as e:
     fail(f"main.py 읽기 실패: {e}"); results["main"] = False
 
