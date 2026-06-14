@@ -89,7 +89,7 @@ function DashboardPage({ userName, onLogout }) {
   const handleOptimize = async () => {
     try {
       const backendUrl =
-        process.env.REACT_APP_API_URL ||
+        process.env.REACT_APP_BACKEND_URL ||
         `http://${window.location.hostname}:8000`;
 
       const income_level =
@@ -430,8 +430,8 @@ function DashboardPage({ userName, onLogout }) {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
-          <img src={logoImg} alt="다바짜" style={{ width: 24, height: 24 }} />
-          <h1>다바짜</h1>
+          <img src={logoImg} alt="돈다바짜" style={{ width: 24, height: 24 }} />
+          <h1>돈다바짜</h1>
           <span className="header-subtitle">청년지원금 최적조합탐색기</span>
         </div>
         <nav className="header-nav">
