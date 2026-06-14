@@ -18,12 +18,9 @@ from models.result_policy import ResultPolicy
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.policy_filter import filter_policies
-
+from dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
-
-_DEMO_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
 
 # ---------------------------------------------------------------------------
 # 헬퍼
@@ -100,10 +97,8 @@ def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
 def optimize_policies(
     request: OptimizeRequest,
     db: Session = Depends(get_db),
+    current_user_id: UUID = Depends(get_current_user),
 ):
-    # TODO: 발표 데모 목적의 임시 고정 UUID.
-    #       실제 배포 전 Depends(get_current_user) 로 교체 필요.
-    current_user_id = _DEMO_USER_ID
     income_level = request.profile.income_level
 
     profile = db.query(UserProfile).filter(

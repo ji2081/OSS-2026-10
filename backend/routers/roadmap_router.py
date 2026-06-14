@@ -9,7 +9,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models.user_profile import UserProfile
 from schemas.profile_schema import UserProfileRequest
 from schemas.roadmap_schema import RoadmapResponse
 from services.mwis.graph_builder import build_graph
@@ -18,8 +17,6 @@ from services.policy_filter import filter_policies
 from services.transition.roadmap_planner import plan_full_roadmap
 
 router = APIRouter(prefix="/policies", tags=["roadmap"])
-
-_DEMO_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 class RoadmapRequest(BaseModel):

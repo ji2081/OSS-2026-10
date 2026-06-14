@@ -35,7 +35,6 @@ class Policy(Base):
 
     exclusive_with = Column(JSONB, default=list)
     exclusive_scope = Column(String, default='lifetime')
-    source_url = Column(String)
     is_supplementary = Column(Boolean, default=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
     confidence = Column(Float, default=1.0)
