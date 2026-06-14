@@ -7,6 +7,7 @@ from uuid import UUID
 
 __all__ = ["PolicyLike", "build_graph"]
 
+# 가중치/수혜기간 계산 기준 연도. 매년 초 갱신 필요 (지나면 weight=0 위험, backend_check.py 3/7에서 점검)
 WINDOW_START = datetime.date(2026, 1, 1)
 WINDOW_END = datetime.date(2026, 12, 31)
 
