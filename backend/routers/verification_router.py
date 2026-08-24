@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from schemas.profile_schema import UserProfileRequest
+from services.cache import cached
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_a_naive import BruteForceSolver
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
@@ -61,7 +62,15 @@ def _enumerate_valid_combinations(adjacency_list: dict, weights: dict) -> list[d
 # ② 교차 솔버
 @router.get("/cross-solver")
 def cross_solver(db: Session = Depends(get_db)) -> dict[str, Any]:
-    """5개 솔버 교차 검증 — Stage A(전수탐색 기준값) 대비 B·C 일치 여부"""
+    """5개 솔버 교차 검증 — Stage A(전수탐색 기준값) 대비 B·C 일치 여부
+
+    인증 없이 공개된 검증용 엔드포인트라 매 호출을 그대로 재계산하지 않고
+    5분 TTL로 캐싱한다 (services/cache.py 참고).
+    """
+    return cached("verify:cross-solver", 300, lambda: _compute_cross_solver(db))
+
+
+def _compute_cross_solver(db: Session) -> dict[str, Any]:
     rows = []
 
     for profile, label in zip(_TEST_PROFILES, _PROFILE_LABELS):
@@ -125,9 +134,17 @@ def cross_solver(db: Session = Depends(get_db)) -> dict[str, Any]:
 # ② 산점도
 @router.get("/distribution")
 def distribution(profile_idx: int = 0, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """전체 유효 독립 집합 산점도 — 프로필 선택 가능"""
+    """전체 유효 독립 집합 산점도 — 프로필 선택 가능
+
+    후보 20개로 캡을 걸어도 부분집합 enumerate가 최대 2^20개에 달해 요청 하나가
+    무겁다. 인증 없이 공개된 엔드포인트이므로 profile_idx별로 5분 TTL 캐싱한다.
+    """
     if profile_idx < 0 or profile_idx >= len(_TEST_PROFILES):
         profile_idx = 0
+    return cached(f"verify:distribution:{profile_idx}", 300, lambda: _compute_distribution(profile_idx, db))
+
+
+def _compute_distribution(profile_idx: int, db: Session) -> dict[str, Any]:
     profile = _TEST_PROFILES[profile_idx]
     label   = _PROFILE_LABELS[profile_idx]
     candidates, _ = filter_policies(db, profile)
@@ -191,6 +208,14 @@ def distribution(profile_idx: int = 0, db: Session = Depends(get_db)) -> dict[st
 # 검증 추가
 @router.get("/exhaustive")
 def exhaustive_profile_test(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """연령×소득×지역×취업여부 704개 프로필 전수 검증.
+
+    가장 비싼 엔드포인트(704 × DB조회+그래프빌드+솔버)라 30분 TTL로 캐싱한다.
+    """
+    return cached("verify:exhaustive", 1800, lambda: _compute_exhaustive(db))
+
+
+def _compute_exhaustive(db: Session) -> dict[str, Any]:
     AGES     = list(range(19, 35))                          # 16개
     INCOMES  = [0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5]  # 11개
     REGIONS  = ["서울", "전국"]                             # 2개
