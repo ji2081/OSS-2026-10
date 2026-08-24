@@ -35,6 +35,9 @@ class Policy(Base):
 
     exclusive_with = Column(JSONB, default=list)
     exclusive_scope = Column(String, default='lifetime')
+    # 미혼/장애/다문화 등, age/income_level/region/is_employed 하드 필터로
+    # 못 거르는 자격조건. services/condition_tags.py의 고정 어휘집 참고.
+    condition_tags = Column(JSONB, default=list)
     is_supplementary = Column(Boolean, default=False, index=True)
     is_active = Column(Boolean, default=True, index=True)
     confidence = Column(Float, default=1.0)

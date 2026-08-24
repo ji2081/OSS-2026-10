@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime
 import uuid
 from database import Base
@@ -23,5 +23,9 @@ class UserProfile(Base):
     is_employed = Column(Boolean, nullable=False, default=False, index=True)
     education_level = Column(String)
     housing_type = Column(String)
+
+    # condition_tags 질문에 대한 답변. {"marital_unmarried": true, ...} 형태로
+    # 한 번 답한 태그는 다시 안 물어보게 저장해둔다. services/condition_tags.py 참고.
+    confirmed_tags = Column(JSONB, default=dict)
 
     created_at = Column(DateTime, default=datetime.utcnow)

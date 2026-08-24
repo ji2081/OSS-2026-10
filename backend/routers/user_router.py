@@ -6,6 +6,7 @@ from schemas.profile_schema import UserProfileRequest, ProfileCreateResponse, Us
 from database import get_db
 from models.user_profile import UserProfile
 from dependencies.auth import get_current_user
+from services.condition_tags import valid_tag_ids
 
 router = APIRouter(prefix="/profiles", tags=["Users"])
 
@@ -80,4 +81,29 @@ def update_user_profile(
     db.commit()
     db.refresh(profile)
 
+    return profile
+
+
+@router.patch("/me/condition-tags", response_model=UserProfileResponse)
+def answer_condition_tags(
+    answers: dict[str, bool],
+    db: Session = Depends(get_db),
+    current_user_id: UUID = Depends(get_current_user),
+):
+    """/optimize 응답의 pending_questions에 대한 답을 저장한다.
+    한 번 답한 태그는 다음 /optimize 호출부터 다시 안 물어본다."""
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="프로필이 없습니다. 먼저 /policies/optimize를 한 번 호출해주세요.")
+
+    unknown = set(answers) - valid_tag_ids()
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"알 수 없는 태그: {sorted(unknown)}")
+
+    confirmed = dict(profile.confirmed_tags or {})
+    confirmed.update(answers)
+    profile.confirmed_tags = confirmed
+
+    db.commit()
+    db.refresh(profile)
     return profile

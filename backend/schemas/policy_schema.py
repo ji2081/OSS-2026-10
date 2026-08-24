@@ -65,6 +65,7 @@ class PolicyResponse(BaseModel):
     situational_condition: Optional[str] = None
     exclusive_with: List[str] = Field(default_factory=list)
     exclusive_scope: Optional[str] = "lifetime"
+    condition_tags: List[str] = Field(default_factory=list)
     confidence: Optional[float] = 1.0
     source_url: Optional[str] = None
     tiers: List[PolicyTierResponse] = Field(default_factory=list)
