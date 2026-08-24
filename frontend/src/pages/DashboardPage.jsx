@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
+import ConditionQuestionsCard from "../components/ConditionQuestionsCard";
 import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
 import logoImg from "../logo.png";
@@ -75,6 +76,7 @@ function DashboardPage({ userName, onLogout }) {
   const allMappedPolicies = r.allMappedPolicies || [];
   const roadmapData = r.roadmapData || null;
   const profilePayload = r.profilePayload || null;
+  const pendingQuestions = r.pendingQuestions || [];
 
   const updateResult = (updates) => {
     setResultsBySet((prev) => ({
@@ -279,6 +281,7 @@ function DashboardPage({ userName, onLogout }) {
         selectedSubsidies: newSelections,
         recommendedSelections: { ...newSelections },
         hasOptimized: true,
+        pendingQuestions: data.pending_questions || [],
       });
 
       // /roadmap API 호출
@@ -311,6 +314,26 @@ function DashboardPage({ userName, onLogout }) {
       });
       alert("서버 연결에 실패했습니다. 백엔드가 실행 중인지 확인해주세요.");
     }
+  };
+
+  const handleAnswerTag = async (tag, value) => {
+    const backendUrl =
+      process.env.REACT_APP_API_URL ||
+      "https://oss-2026-10-production.up.railway.app";
+    try {
+      await fetch(`${backendUrl}/profiles/me/condition-tags`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({ [tag]: value }),
+      });
+    } catch (e) {
+      console.warn("조건 답변 저장 실패:", e);
+    }
+    // 답변에 따라 결과(포함 여부)가 바뀔 수 있으니 다시 최적화를 돌린다.
+    await handleOptimize();
   };
 
   const toggleSubsidy = (subsidyId) => {
@@ -521,6 +544,12 @@ function DashboardPage({ userName, onLogout }) {
                 </p>
               </div>
             </div>
+            {hasOptimized && (
+              <ConditionQuestionsCard
+                questions={pendingQuestions}
+                onAnswer={handleAnswerTag}
+              />
+            )}
             <SummaryCards
               totalAmount={totalAmount}
               confirmedAmount={confirmedAmount}
