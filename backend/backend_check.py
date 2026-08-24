@@ -90,15 +90,20 @@ section("3 / 7  graph_builder WINDOW 경계 점검")
 
 try:
     import services.mwis.graph_builder as gb
-    ws, we, today = gb.WINDOW_START, gb.WINDOW_END, date.today()
-    info(f"WINDOW_START={ws}  WINDOW_END={we}  오늘={today}")
+    ws, we = gb.current_window()
+    today = date.today()
+    info(f"WINDOW_START={ws}  WINDOW_END={we}  오늘={today} (매 호출마다 오늘 기준으로 재계산됨)")
 
-    if today > we:
-        fail(f"WINDOW_END가 과거 → 모든 weight=0 위험!")
+    # current_window()는 항상 오늘부터 HORIZON_MONTHS개월 뒤까지를 반환하므로
+    # "WINDOW_END가 과거"인 상황 자체가 구조적으로 발생할 수 없다(예전 하드코딩
+    # 연도 방식과 달리 사람이 매년 갱신할 필요가 없어짐). 대신 HORIZON_MONTHS가
+    # 실수로 0이나 음수로 바뀌는 회귀만 잡아준다.
+    span_days = (we - ws).days
+    if span_days < 300:
+        fail(f"WINDOW 길이가 비정상적으로 짧음({span_days}일) — HORIZON_MONTHS 설정 확인 필요")
         results["window"] = False
     else:
-        remaining = (we - today).days
-        (ok if remaining > 60 else warn)(f"WINDOW 정상, {remaining}일 남음")
+        ok(f"WINDOW 정상 (약 {span_days}일, HORIZON_MONTHS={gb.HORIZON_MONTHS})")
         results["window"] = True
 
     if DB_AVAILABLE:
