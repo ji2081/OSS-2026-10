@@ -44,21 +44,34 @@ def _normalize_title(name: str) -> str:
     return re.sub(r'\s+', ' ', name).strip()
 
 
-def _api_policies_to_raw(items: list[RawApiPolicy]) -> list[tuple[str, str, str]]:
+def _api_policies_to_raw(items: list[RawApiPolicy]) -> list[tuple[str, str, str, str]]:
+    # 검색 API가 이미 숫자/날짜로 주는 값(EARN_MIN_AMT, APLY_PRD_BGNG_YMD 등)을
+    # 예전엔 버렸었는데, 이제 텍스트에 명시적으로 실어 보낸다 — LLM이 "본문에
+    # 안 적힌 값"을 잘못 추측할 필요 없이 API가 준 값을 그대로 옮겨쓰기만 하면
+    # 되므로 정확도가 올라간다.
+    # 마지막 값(atch_file_mng_sn)은 LLM 프롬프트에 넣지 않는다 — 이건 llm_normalizer의
+    # PDF 승격 단계가 필요할 때만 쓰는 내부 참조 ID다.
     return [
         (
             f"정책명: {p.name}\n주관기관: {p.host_org}\n대상지역: {p.target_region}\n"
-            f"신청기간: {p.apply_period}\n개요: {p.overview}\n지원내용: {p.support_content}\n"
-            f"대상나이: {p.age_min}~{p.age_max}세",
+            f"신청기간(원문): {p.apply_period} ({p.apply_start_ymd}~{p.apply_end_ymd})\n"
+            f"소득기준(API 원값): 하한 {p.income_min_amt or '없음'} / 상한 {p.income_max_amt or '없음'}\n"
+            f"대상나이: {p.age_min}~{p.age_max}세\n"
+            f"개요: {p.overview}\n지원내용: {p.support_content}\n"
+            f"추가 자격조건: {p.add_qualification or '없음'}\n"
+            f"신청방법: {p.apply_method or '없음'}",
             p.source_url,
             _normalize_title(p.name),
+            p.atch_file_mng_sn,
         )
         for p in items
     ]
 
 
-def _crawled_to_raw(items: list[RawCrawledPolicy]) -> list[tuple[str, str, str]]:
-    return [(it.raw_text, it.url, _normalize_title(it.name)) for it in items]
+def _crawled_to_raw(items: list[RawCrawledPolicy]) -> list[tuple[str, str, str, str]]:
+    # 복지로는 첨부파일 다운로드 경로를 아직 리버스엔지니어링하지 않아서
+    # atch_file_mng_sn 자리에 빈 문자열을 넣는다 — PDF 승격은 자동으로 스킵됨.
+    return [(it.raw_text, it.url, _normalize_title(it.name), "") for it in items]
 
 
 def _save_cache(schemas: list) -> None:
@@ -86,7 +99,7 @@ def _load_cache() -> list[PolicySchema] | None:
     return schemas
 
 
-async def run_pipeline(use_cache: bool = False) -> None:
+async def run_pipeline(use_cache: bool = False, limit: int | None = None) -> None:
     print("=" * 60)
     print("청년 지원금 ETL 파이프라인 시작")
     print("=" * 60)
@@ -120,6 +133,10 @@ async def run_pipeline(use_cache: bool = False) -> None:
         excluded_names = [item[2] for item in raw_items if not _is_relevant(item[2])]
         raw_items = [item for item in raw_items if _is_relevant(item[2])]
 
+        if limit is not None:
+            raw_items = raw_items[:limit]
+            print(f"  → --limit {limit} 적용, 이후 단계는 이 {len(raw_items)}개만 처리")
+
         print(f"  → 총 추출: {before}개")
         print(f"  → 키워드 필터링: {before}개 → {len(raw_items)}개 ({len(excluded_names)}개 제외)")
         print("  → 제외된 정책 샘플 (상위 10개):")
@@ -149,11 +166,12 @@ async def run_pipeline(use_cache: bool = False) -> None:
 
         _save_cache(schemas)
 
-    print("\n[3/3] DB 삽입 중...")
+    print("\n[3/3] policies_etl_staging 적재 중... (policies에는 아직 반영 안 됨)")
     result = await insert_batch(DB_DSN, schemas, source="etl_run")
-    print(f"  ✓ 삽입 성공: {result.success}개")
-    print(f"  ⚠ 건너뜀:   {result.skipped}개")
-    print(f"  ✗ 실패:     {result.failed}개")
+    print(f"  ✓ 스테이징 적재: {result.success}개")
+    print(f"  ⚠ 건너뜀:       {result.skipped}개 (confidence < 0.5)")
+    print(f"  ✗ 실패:         {result.failed}개")
+    print(f"  → 실제 반영은 python -m etl.promote list 로 검토 후 진행하세요.")
 
     if result.errors:
         print("\n[오류 목록]")
@@ -170,4 +188,9 @@ async def run_pipeline(use_cache: bool = False) -> None:
 if __name__ == "__main__":
     import sys
     use_cache = "--cache" in sys.argv
-    asyncio.run(run_pipeline(use_cache=use_cache))
+    limit = None
+    if "--limit" in sys.argv:
+        idx = sys.argv.index("--limit")
+        if idx + 1 < len(sys.argv):
+            limit = int(sys.argv[idx + 1])
+    asyncio.run(run_pipeline(use_cache=use_cache, limit=limit))
