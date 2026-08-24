@@ -17,7 +17,8 @@ from models.result_policy import ResultPolicy
 
 from services.mwis.graph_builder import build_graph
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
-from services.policy_filter import filter_policies
+from services.mwis.tier_resolver import resolve_tier
+from services.policy_filter import filter_policies, pending_tag_questions
 from dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
@@ -26,21 +27,9 @@ router = APIRouter(prefix="/policies", tags=["Policies"])
 # 헬퍼
 # ---------------------------------------------------------------------------
 
-def _resolve_tier(policy: Policy, income_level: Optional[float]):
-    if not policy.tiers:
-        return None
-    if income_level is None:
-        return policy.tiers[0]
-    return next(
-        (t for t in sorted(policy.tiers, key=lambda t: t.max_income_ratio or 999)
-         if t.max_income_ratio is None or t.max_income_ratio >= income_level),
-        policy.tiers[0],
-    )
-
-
 def _build_policy_response(p: Policy, income_level: Optional[float]) -> PolicyResponse:
     resp = PolicyResponse.model_validate(p)
-    tier = _resolve_tier(p, income_level)
+    tier = resolve_tier(p.tiers, income_level)
     resp.resolved_tier = PolicyTierResponse.model_validate(tier) if tier else None
     return resp
 
@@ -51,7 +40,7 @@ def _calc_start_date(policy: Policy) -> date:
 
 
 def _calc_end_date(start: date, income_level: Optional[float], policy: Policy) -> date:
-    tier = _resolve_tier(policy, income_level)
+    tier = resolve_tier(policy.tiers, income_level)
     if tier and tier.duration_months:
         total_months = start.month - 1 + tier.duration_months
         return date(start.year + total_months // 12, total_months % 12 + 1, 1)
@@ -115,11 +104,12 @@ def optimize_policies(
         db.add(profile)
         db.flush()
 
-    mwis_candidates, supplementary = filter_policies(db, request.profile)
+    confirmed_tags = profile.confirmed_tags or {}
+    mwis_candidates, supplementary = filter_policies(db, request.profile, confirmed_tags)
 
     print(f"[필터링] 전체 {len(mwis_candidates) + len(supplementary)}개 "
           f"(MWIS 후보: {len(mwis_candidates)}, 보조: {len(supplementary)})")
-    
+
 
     if not mwis_candidates:
         return OptimizeResponse(
@@ -127,6 +117,7 @@ def optimize_policies(
             selected_policies=[],
             supplementary_policies=[_build_policy_response(p, income_level) for p in supplementary],
             timeline=[],
+            pending_questions=pending_tag_questions(supplementary, confirmed_tags),
         )
 
     adjacency_list, weights = build_graph(mwis_candidates, income_level=income_level)
@@ -185,4 +176,7 @@ def optimize_policies(
     supplementary_policies=[_build_policy_response(p, income_level)
                              for p in supplementary + unselected],
     timeline=timeline,
+    # 결과 화면에 실제로 뜨는 정책 기준으로만 물어봄(unselected/전체 후보 X) —
+    # 사용자가 지금 보고 있는 조합과 무관한 질문은 하지 않는다.
+    pending_questions=pending_tag_questions(optimized + supplementary, confirmed_tags),
 )

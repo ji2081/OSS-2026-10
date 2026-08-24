@@ -1,0 +1,102 @@
+/* ConditionQuestionsCard.css — 흑백 미니멀, 경고 톤만 살짝 */
+
+.condition-questions-card {
+  background: #fff;
+  border: 1px solid #eadfb0;
+  border-left: 3px solid #d9b400;
+  border-radius: 2px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.cq-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cq-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #7a5d00;
+  background: #fdf3cf;
+  border-radius: 2px;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.cq-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.cq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cq-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.cq-item:first-child {
+  border-top: none;
+}
+
+.cq-question {
+  font-size: 13px;
+  color: #111;
+}
+
+.cq-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cq-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 2px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cq-btn:hover:not(:disabled) {
+  border-color: #999;
+  color: #111;
+}
+
+.cq-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cq-btn-yes:hover:not(:disabled) {
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+
+.cq-note {
+  font-size: 11px;
+  color: #999;
+  margin: 10px 0 0;
+}
