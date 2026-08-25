@@ -188,6 +188,13 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+.login-card-v2 .login-button:disabled,
+.login-card-v2 .social-btn:disabled,
+.modal-card .login-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .login-card-v2 .social-btn svg path {
   fill: rgba(255, 255, 255, 0.8);
 }

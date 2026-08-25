@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import "./RoadmapPage.css";
+import RequestFeedback from "../components/RequestFeedback";
 
 const ALL_CATEGORIES = {
   employment: { label: "취업·교육", color: "#FB8C00" },
@@ -45,6 +46,10 @@ function RoadmapPage({
   selectedSubsidies,
   hasOptimized,
   roadmapData,
+  requestStatus = "idle",
+  errorMessage = "",
+  onRetry,
+  onDismissError,
 }) {
   const selectedItems = roadmapData
     ? roadmapData.phases.flatMap((phase) =>
@@ -83,17 +88,36 @@ function RoadmapPage({
     return () => obs.disconnect();
   }, []);
 
-  if (!hasOptimized || selectedItems.length === 0) {
+  if (requestStatus === "loading" || requestStatus === "error") {
+    return (
+      <>
+        <RequestFeedback
+          status={requestStatus}
+          title={requestStatus === "loading" ? "수혜 로드맵 생성 중" : "로드맵을 불러오지 못했습니다"}
+          message={requestStatus === "loading" ? "선택한 정책의 일정을 계산하고 있습니다." : errorMessage}
+          onRetry={onRetry}
+          onDismiss={onDismissError}
+        />
+        <div className="roadmap-page" />
+      </>
+    );
+  }
+
+  if (!hasOptimized || requestStatus !== "success" || selectedItems.length === 0) {
     return (
       <div className="roadmap-page">
         <div className="roadmap-empty">
           <div className="roadmap-empty-icon">📋</div>
           <h3>
-            {hasOptimized && !roadmapData
-              ? "환승 로드맵 계산 중..."
-              : "먼저 최적 조합을 탐색해주세요"}
+            {requestStatus === "empty"
+                  ? "생성할 수 있는 로드맵이 없습니다"
+                  : "먼저 최적 조합을 탐색해주세요"}
           </h3>
-          <p>대시보드에서 조건을 설정하고 "최적 조합 탐색"을 눌러주세요.</p>
+          <p>
+            {requestStatus === "empty"
+                ? "선택한 정책을 변경한 뒤 다시 확인해주세요."
+                : "대시보드에서 조건을 설정하고 \"최적 조합 탐색\"을 눌러주세요."}
+          </p>
         </div>
       </div>
     );

@@ -16,6 +16,7 @@ function Sidebar({
   condition,
   onUpdateCondition,
   onOptimize,
+  isOptimizing = false,
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -216,9 +217,13 @@ function Sidebar({
       </div>
 
       <div className="sidebar-footer">
-        <button className="optimize-button" onClick={onOptimize}>
+        <button
+          className="optimize-button"
+          onClick={onOptimize}
+          disabled={isOptimizing}
+        >
           <span className="optimize-icon">🔍</span>
-          최적 조합 탐색
+          {isOptimizing ? "분석 중..." : "최적 조합 탐색"}
         </button>
         <p className="optimize-desc">현재 조건에 맞는 정책을 분석합니다</p>
       </div>

@@ -297,6 +297,11 @@
   background: #000;
 }
 
+.optimize-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .optimize-icon {
   font-size: 14px;
 }

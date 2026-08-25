@@ -10,6 +10,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "./ExclusionGraphPage.css";
+import RequestFeedback from "../components/RequestFeedback";
 
 const CATEGORY_COLORS = {
   housing: "#43A047",
@@ -258,6 +259,10 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [categoryBounds, setCategoryBounds] = useState({});
+  const [requestStatus, setRequestStatus] = useState("loading");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
     const handler = (e) => {
@@ -269,6 +274,9 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
 
   useEffect(() => {
     const fetchAll = async () => {
+      setRequestStatus("loading");
+      setErrorMessage("");
+      setErrorDismissed(false);
       try {
         const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
         let all = [];
@@ -277,8 +285,13 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           const res = await fetch(
             `${backendUrl}/policies/?limit=100&skip=${skip}`,
           );
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => null);
+            throw new Error(errorData?.detail || `정책 요청에 실패했습니다. (${res.status})`);
+          }
           const data = await res.json();
-          if (!Array.isArray(data) || data.length === 0) break;
+          if (!Array.isArray(data)) throw new Error("서버 응답 형식이 올바르지 않습니다.");
+          if (data.length === 0) break;
           all = [...all, ...data];
           if (data.length < 100) break;
           skip += 100;
@@ -292,12 +305,20 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           });
         });
         setAllPolicies(all);
+        setRequestStatus(all.length > 0 ? "success" : "empty");
       } catch (err) {
         console.error("정책 로드 실패:", err);
+        setAllPolicies([]);
+        setRequestStatus("error");
+        setErrorMessage(
+          err instanceof TypeError
+            ? "서버에 연결할 수 없습니다. 네트워크와 백엔드 실행 상태를 확인해주세요."
+            : err.message || "정책 데이터를 불러오지 못했습니다.",
+        );
       }
     };
     fetchAll();
-  }, []);
+  }, [retryCount]);
 
   const nodeMap = useMemo(() => {
     const m = {};
@@ -367,7 +388,22 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
 
   const totalExclusions = useMemo(() => edges.length, [edges]);
 
-  if (!hasOptimized || allPolicies.length === 0) {
+  if (hasOptimized && !errorDismissed && (requestStatus === "loading" || requestStatus === "error")) {
+    return (
+      <>
+        <RequestFeedback
+          status={requestStatus}
+          title={requestStatus === "loading" ? "정책 그래프 불러오는 중" : "정책 데이터를 불러오지 못했습니다"}
+          message={requestStatus === "loading" ? "정책 관계를 구성하고 있습니다." : errorMessage}
+          onRetry={() => setRetryCount((count) => count + 1)}
+          onDismiss={() => setErrorDismissed(true)}
+        />
+        <div className="graph-page" />
+      </>
+    );
+  }
+
+  if (!hasOptimized || requestStatus !== "success" || allPolicies.length === 0) {
     return (
       <div className="graph-page">
         <div className="graph-empty">
@@ -375,9 +411,15 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           <h3>
             {!hasOptimized
               ? "먼저 최적 조합을 탐색해주세요"
-              : "정책 데이터 로딩 중..."}
+              : requestStatus === "empty"
+                ? "표시할 정책 데이터가 없습니다"
+                : "정책 데이터를 불러오지 못했습니다"}
           </h3>
-          <p>대시보드에서 조건을 설정하고 "최적 조합 탐색"을 눌러주세요.</p>
+          <p>
+            {!hasOptimized
+              ? "대시보드에서 조건을 설정하고 \"최적 조합 탐색\"을 눌러주세요."
+              : errorMessage || "잠시 후 다시 확인해주세요."}
+          </p>
         </div>
       </div>
     );
