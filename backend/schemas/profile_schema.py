@@ -35,9 +35,15 @@ class UserProfileResponse(BaseModel):
     income_level: Optional[float] = None
     is_employed: bool
     region: str
+    confirmed_tags: dict = Field(default_factory=dict)
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PendingTagQuestion(BaseModel):
+    tag: str
+    question: str
 
 
 class OptimizeRequest(BaseModel):
@@ -56,6 +62,9 @@ class OptimizeResponse(BaseModel):
     selected_policies: List["PolicyResponse"]
     supplementary_policies: List["PolicyResponse"]
     timeline: List[TimelineItem]
+    # 결과에 낀 정책 중 미혼/장애 등 아직 확인 안 된 조건이 있으면 여기 담김.
+    # 비어있지 않으면 프론트가 "확인 필요" 배지 + 후속 질문을 보여줘야 함.
+    pending_questions: List[PendingTagQuestion] = Field(default_factory=list)
 
 from schemas.policy_schema import PolicyResponse
 OptimizeResponse.model_rebuild()

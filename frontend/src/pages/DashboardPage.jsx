@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "../components/Sidebar";
 import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
+import ConditionQuestionsCard from "../components/ConditionQuestionsCard";
 import RoadmapPage from "./RoadmapPage";
 import BenefitsPage from "./BenefitsPage";
 import logoImg from "../logo.png";
@@ -99,11 +100,15 @@ function DashboardPage({ userName, onLogout }) {
   const optimizeError = r.optimizeError || "";
   const roadmapStatus = r.roadmapStatus || "idle";
   const roadmapError = r.roadmapError || "";
+  const pendingQuestions = r.pendingQuestions || [];
 
   const updateResult = useCallback((updates) => {
     setResultsBySet((prev) => ({
       ...prev,
-      [activeSetIdRef.current]: { ...(prev[activeSetIdRef.current] || {}), ...updates },
+      [activeSetIdRef.current]: {
+        ...(prev[activeSetIdRef.current] || {}),
+        ...updates,
+      },
     }));
   }, []);
 
@@ -133,7 +138,7 @@ function DashboardPage({ userName, onLogout }) {
 
     updateResult({ optimizeStatus: "loading", optimizeError: "", roadmapStatus: "idle", roadmapError: "" });
     try {
-      const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
+      const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
 
       const income_level =
         activeCondition.annualIncome === 0
@@ -166,21 +171,39 @@ function DashboardPage({ userName, onLogout }) {
       console.log("백엔드 응답:", data);
 
       const categoryMap = {
-        culture: "culture", education: "education", employment: "employment",
-        finance: "finance", health: "health", housing: "housing",
-        military: "military", rights: "rights", scholarship: "scholarship",
-        startup: "startup", welfare: "welfare",
+        culture: "culture",
+        education: "education",
+        employment: "employment",
+        finance: "finance",
+        health: "health",
+        housing: "housing",
+        military: "military",
+        rights: "rights",
+        scholarship: "scholarship",
+        startup: "startup",
+        welfare: "welfare",
       };
 
       const typeMap = {
-        subsidy: "confirmed", interest_subsidy: "confirmed", savings: "confirmed",
-        voucher: "utilization", cashback: "utilization", pass: "utilization",
-        goods: "selective", loan: "selective", other: "selective",
+        subsidy: "confirmed",
+        interest_subsidy: "confirmed",
+        savings: "confirmed",
+        voucher: "utilization",
+        cashback: "utilization",
+        pass: "utilization",
+        goods: "selective",
+        loan: "selective",
+        other: "selective",
       };
 
       const benefitCatMap = {
-        culture: "culture", education: "employment", employment: "employment",
-        finance: "welfare", health: "welfare", housing: "welfare", military: "welfare",
+        culture: "culture",
+        education: "employment",
+        employment: "employment",
+        finance: "welfare",
+        health: "welfare",
+        housing: "welfare",
+        military: "welfare",
       };
 
       const mapPolicy = (p) => ({
@@ -190,7 +213,11 @@ function DashboardPage({ userName, onLogout }) {
         type: typeMap[p.benefit_type] || "selective",
         benefit_type: p.benefit_type,
         amount: p.resolved_tier
-          ? Math.round((p.resolved_tier.monthly_benefit * p.resolved_tier.duration_months) / 10000)
+          ? Math.round(
+              (p.resolved_tier.monthly_benefit *
+                p.resolved_tier.duration_months) /
+                10000,
+            )
           : 0,
         apply_start: p.apply_start || null,
         apply_end: p.apply_end || null,
@@ -203,37 +230,63 @@ function DashboardPage({ userName, onLogout }) {
         documents: [],
         source_url: p.source_url,
         deadline: p.apply_end,
-        duration_months: p.resolved_tier ? p.resolved_tier.duration_months : null,
+        duration_months: p.resolved_tier
+          ? p.resolved_tier.duration_months
+          : null,
         situational_condition: p.situational_condition || null,
       });
 
       const toBenefit = (p) => ({
-        id: p.id, name: p.name,
+        id: p.id,
+        name: p.name,
         category: benefitCatMap[p.category] || "welfare",
         type: p.type,
-        typeLabel: p.benefit_type === "loan" ? "대출" : p.benefit_type === "goods" ? "물품" : "서비스",
-        amount: null, amountLabel: "별도 안내",
-        provider: p.provider, description: p.description,
+        typeLabel:
+          p.benefit_type === "loan"
+            ? "대출"
+            : p.benefit_type === "goods"
+              ? "물품"
+              : "서비스",
+        amount: null,
+        amountLabel: "별도 안내",
+        provider: p.provider,
+        description: p.description,
         source_url: p.source_url,
         situational_condition: p.situational_condition || null,
         tags: [],
-        period: p.apply_start ? { start: p.apply_start, end: p.apply_end } : null,
-        eligibility: {}, isOneTime: false, isRecurring: false,
+        period: p.apply_start
+          ? { start: p.apply_start, end: p.apply_end }
+          : null,
+        eligibility: {},
+        isOneTime: false,
+        isRecurring: false,
         howToApply: "해당 기관 홈페이지 또는 방문 신청",
       });
 
       const converted = data.selected_policies.map(mapPolicy);
-      const supplementaryConverted = (data.supplementary_policies || []).map(mapPolicy);
+      const supplementaryConverted = (data.supplementary_policies || []).map(
+        mapPolicy,
+      );
 
       const mainPolicies = converted.filter(
-        (p) => (p.type === "confirmed" || p.type === "utilization") && p.amount && p.amount > 0,
+        (p) =>
+          (p.type === "confirmed" || p.type === "utilization") &&
+          p.amount &&
+          p.amount > 0,
       );
-      const nullAsBenefits = converted.filter((p) => p.type === "selective").map(toBenefit);
+      const nullAsBenefits = converted
+        .filter((p) => p.type === "selective")
+        .map(toBenefit);
 
       const suppMain = supplementaryConverted.filter(
-        (p) => (p.type === "confirmed" || p.type === "utilization") && p.amount && p.amount > 0,
+        (p) =>
+          (p.type === "confirmed" || p.type === "utilization") &&
+          p.amount &&
+          p.amount > 0,
       );
-      const suppBenefits = supplementaryConverted.filter((p) => p.type === "selective").map(toBenefit);
+      const suppBenefits = supplementaryConverted
+        .filter((p) => p.type === "selective")
+        .map(toBenefit);
 
       updateResult({
         filteredSubsidies: [...mainPolicies, ...suppMain],
@@ -249,14 +302,22 @@ function DashboardPage({ userName, onLogout }) {
       });
 
       suppMain.forEach((s) => {
-        const hasConflict = (s.exclusive_with || []).some((id) => newSelections[id]);
+        const hasConflict = (s.exclusive_with || []).some(
+          (id) => newSelections[id],
+        );
         if (!hasConflict && s.category !== "scholarship") {
           newSelections[s.id] = true;
         }
       });
 
       allPolicies
-        .filter((s) => s.type === "confirmed" && s.amount && s.amount > 0 && s.category !== "scholarship")
+        .filter(
+          (s) =>
+            s.type === "confirmed" &&
+            s.amount &&
+            s.amount > 0 &&
+            s.category !== "scholarship",
+        )
         .forEach((s) => {
           const hasConflictSelected = (s.exclusive_with || []).some((id) => {
             const conflictPolicy = allPolicies.find((x) => x.id === id);
@@ -274,6 +335,7 @@ function DashboardPage({ userName, onLogout }) {
         optimizeStatus:
           converted.length + supplementaryConverted.length === 0 ? "empty" : "success",
         optimizeError: "",
+        pendingQuestions: data.pending_questions || [],
       });
 
       // /roadmap API 호출
@@ -317,25 +379,58 @@ function DashboardPage({ userName, onLogout }) {
     }
   };
 
+  const handleAnswerTag = async (tag, value) => {
+    const backendUrl =
+      process.env.REACT_APP_API_URL ||
+      "https://oss-2026-10-production.up.railway.app";
+    try {
+      await fetch(`${backendUrl}/profiles/me/condition-tags`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({ [tag]: value }),
+      });
+    } catch (e) {
+      console.warn("조건 답변 저장 실패:", e);
+    }
+    // 답변에 따라 결과(포함 여부)가 바뀔 수 있으니 다시 최적화를 돌린다.
+    await handleOptimize();
+  };
+
   const toggleSubsidy = (subsidyId) => {
     const subsidy = filteredSubsidies.find((s) => s.id === subsidyId);
 
-    if (subsidy && subsidy.exclusive_with && subsidy.exclusive_with.length > 0) {
+    if (
+      subsidy &&
+      subsidy.exclusive_with &&
+      subsidy.exclusive_with.length > 0
+    ) {
       const next = { ...selectedSubsidies };
-      subsidy.exclusive_with.forEach((id) => { next[id] = false; });
+      subsidy.exclusive_with.forEach((id) => {
+        next[id] = false;
+      });
       next[subsidyId] = !selectedSubsidies[subsidyId];
       updateResult({ selectedSubsidies: next });
       return;
     }
 
-    updateResult({ selectedSubsidies: { ...selectedSubsidies, [subsidyId]: !selectedSubsidies[subsidyId] } });
+    updateResult({
+      selectedSubsidies: {
+        ...selectedSubsidies,
+        [subsidyId]: !selectedSubsidies[subsidyId],
+      },
+    });
   };
 
   useEffect(() => {
     if (currentPage !== "roadmap" || !hasOptimized || !profilePayload) return;
-    const selected = Object.keys(selectedSubsidies).filter((id) => selectedSubsidies[id]);
+    const selected = Object.keys(selectedSubsidies).filter(
+      (id) => selectedSubsidies[id],
+    );
     if (!selected.length) return;
-    const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
+    const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
     updateResult({ roadmapStatus: "loading", roadmapError: "", roadmapData: null });
     fetch(`${backendUrl}/policies/roadmap`, {
       method: "POST",
@@ -377,24 +472,43 @@ function DashboardPage({ userName, onLogout }) {
             .filter(Boolean)
             .join(", ");
           dynamicDupGroups.push({
-            id: s.id, name: "중복 제한", items: group, recommendedId: s.id,
+            id: s.id,
+            name: "중복 제한",
+            items: group,
+            recommendedId: s.id,
             reason: `${conflictNames}과(와) 동시에 수혜 불가합니다.`,
           });
         }
       }
     });
 
-  const confirmedPolicies = filteredSubsidies.filter((s) => s.type === "confirmed");
-  const utilizationPolicies = filteredSubsidies.filter((s) => s.type === "utilization");
+  const confirmedPolicies = filteredSubsidies.filter(
+    (s) => s.type === "confirmed",
+  );
+  const utilizationPolicies = filteredSubsidies.filter(
+    (s) => s.type === "utilization",
+  );
 
-  const selectedConfirmed = confirmedPolicies.filter((s) => selectedSubsidies[s.id] && s.amount && s.amount > 0);
-  const selectedUtilization = utilizationPolicies.filter((s) => selectedSubsidies[s.id] && s.amount && s.amount > 0);
+  const selectedConfirmed = confirmedPolicies.filter(
+    (s) => selectedSubsidies[s.id] && s.amount && s.amount > 0,
+  );
+  const selectedUtilization = utilizationPolicies.filter(
+    (s) => selectedSubsidies[s.id] && s.amount && s.amount > 0,
+  );
 
-  const confirmedAmount = selectedConfirmed.reduce((sum, s) => sum + (s.amount || 0), 0);
-  const utilizationAmount = selectedUtilization.reduce((sum, s) => sum + (s.amount || 0), 0);
+  const confirmedAmount = selectedConfirmed.reduce(
+    (sum, s) => sum + (s.amount || 0),
+    0,
+  );
+  const utilizationAmount = selectedUtilization.reduce(
+    (sum, s) => sum + (s.amount || 0),
+    0,
+  );
   const totalAmount = confirmedAmount + utilizationAmount;
   const selectedCount = selectedConfirmed.length + selectedUtilization.length;
-  const grants = [...confirmedPolicies, ...utilizationPolicies].filter((s) => s.amount && s.amount > 0);
+  const grants = [...confirmedPolicies, ...utilizationPolicies].filter(
+    (s) => s.amount && s.amount > 0,
+  );
 
   const today = new Date();
   const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")} 기준`;
@@ -403,25 +517,59 @@ function DashboardPage({ userName, onLogout }) {
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
-          <img src={logoImg} alt="다바짜" style={{ width: 24, height: 24 }} />
-          <h1>다바짜</h1>
+          <img src={logoImg} alt="돈다바짜" style={{ width: 24, height: 24 }} />
+          <h1>돈다바짜</h1>
           <span className="header-subtitle">청년지원금 최적조합탐색기</span>
         </div>
         <nav className="header-nav">
-          <a href="#" className={`nav-item${currentPage === "dashboard" ? " active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setCurrentPage("dashboard"); }}>대시보드</a>
-          <a href="#" className={`nav-item${currentPage === "roadmap" ? " active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setCurrentPage("roadmap"); }}>수혜 로드맵</a>
-          <a href="#" className={`nav-item${currentPage === "benefits" ? " active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setCurrentPage("benefits"); }}>알짜배기 정보</a>
-          <a href="#" className={`nav-item${currentPage === "graph" ? " active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setCurrentPage("graph"); }}>정책 그래프</a>
+          <a
+            href="#"
+            className={`nav-item${currentPage === "dashboard" ? " active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage("dashboard");
+            }}
+          >
+            대시보드
+          </a>
+          <a
+            href="#"
+            className={`nav-item${currentPage === "roadmap" ? " active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage("roadmap");
+            }}
+          >
+            수혜 로드맵
+          </a>
+          <a
+            href="#"
+            className={`nav-item${currentPage === "benefits" ? " active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage("benefits");
+            }}
+          >
+            알짜배기 정보
+          </a>
+          <a
+            href="#"
+            className={`nav-item${currentPage === "graph" ? " active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage("graph");
+            }}
+          >
+            정책 그래프
+          </a>
         </nav>
         <div className="header-right">
           <span className="header-date">{dateStr}</span>
           <div className="header-user">
             <span>{userName}</span>
-            <button onClick={onLogout} className="logout-btn">로그아웃</button>
+            <button onClick={onLogout} className="logout-btn">
+              로그아웃
+            </button>
           </div>
         </div>
       </header>
@@ -473,6 +621,12 @@ function DashboardPage({ userName, onLogout }) {
                 </p>
               </div>
             </div>
+            {hasOptimized && (
+              <ConditionQuestionsCard
+                questions={pendingQuestions}
+                onAnswer={handleAnswerTag}
+              />
+            )}
             <SummaryCards
               totalAmount={totalAmount}
               confirmedAmount={confirmedAmount}
@@ -497,7 +651,9 @@ function DashboardPage({ userName, onLogout }) {
                 categories={CATEGORIES}
                 duplicateGroups={dynamicDupGroups}
                 onResetToRecommended={() =>
-                  updateResult({ selectedSubsidies: { ...recommendedSelections } })
+                  updateResult({
+                    selectedSubsidies: { ...recommendedSelections },
+                  })
                 }
               />
             ) : (

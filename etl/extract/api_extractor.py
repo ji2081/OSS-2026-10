@@ -47,6 +47,17 @@ class RawApiPolicy:
     age_max: str
     apply_period: str
     source_url: str
+    # 검색 API가 이미 구조화된 값으로 주는데도 예전엔 버려지던 필드들.
+    # LLM이 텍스트에서 다시 추론하는 대신 그대로 신뢰할 수 있는 값들이라
+    # 프롬프트에 명시적으로 실어 보낸다 (income_threshold/apply_start 등을
+    # LLM이 잘못 재추정할 여지를 줄임).
+    income_min_amt: str        # EARN_MIN_AMT — 소득 하한(중위소득 % 또는 원 단위, 정책마다 다름)
+    income_max_amt: str        # EARN_MAX_AMT — 소득 상한
+    apply_start_ymd: str       # APLY_PRD_BGNG_YMD — YYYYMMDD
+    apply_end_ymd: str         # APLY_PRD_END_YMD — YYYYMMDD
+    add_qualification: str     # ADD_APLY_QLFC_CND_CN — 추가 자격조건 (혼인여부, 자격증 등)
+    apply_method: str          # PLCY_APLY_MTHD_CN — 신청 방법
+    atch_file_mng_sn: str      # ATCH_FILE_MNG_SN — 첨부파일(공고문 PDF) 조회용 ID, 비어있으면 첨부 없음
 
 
 async def _fetch_page(client: httpx.AsyncClient, page: int) -> dict:
@@ -69,6 +80,13 @@ def _item_to_raw(item: dict) -> RawApiPolicy:
         age_max=item.get("SPRT_TRGT_MAX_AGE", ""),
         apply_period=item.get("APLY_PRD_SE_CD", ""),
         source_url=item.get("REF_URL_ADDR1", "") or f"https://www.youthcenter.go.kr/youthPolicy/ythPlcyTotalSearch",
+        income_min_amt=item.get("EARN_MIN_AMT", ""),
+        income_max_amt=item.get("EARN_MAX_AMT", ""),
+        apply_start_ymd=item.get("APLY_PRD_BGNG_YMD", ""),
+        apply_end_ymd=item.get("APLY_PRD_END_YMD", ""),
+        add_qualification=item.get("ADD_APLY_QLFC_CND_CN", ""),
+        apply_method=item.get("PLCY_APLY_MTHD_CN", ""),
+        atch_file_mng_sn=item.get("ATCH_FILE_MNG_SN", ""),
     )
 
 

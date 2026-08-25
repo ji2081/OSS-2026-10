@@ -1,10 +1,3 @@
-"""
-backend_check.py
-실행: backend/ 디렉토리에서 (venv 활성화 후)
-    source venv/Scripts/activate
-    python backend_check.py
-"""
-
 from __future__ import annotations
 import sys, os, json, traceback
 from datetime import date
@@ -97,15 +90,20 @@ section("3 / 7  graph_builder WINDOW 경계 점검")
 
 try:
     import services.mwis.graph_builder as gb
-    ws, we, today = gb.WINDOW_START, gb.WINDOW_END, date.today()
-    info(f"WINDOW_START={ws}  WINDOW_END={we}  오늘={today}")
+    ws, we = gb.current_window()
+    today = date.today()
+    info(f"WINDOW_START={ws}  WINDOW_END={we}  오늘={today} (매 호출마다 오늘 기준으로 재계산됨)")
 
-    if today > we:
-        fail(f"WINDOW_END가 과거 → 모든 weight=0 위험!")
+    # current_window()는 항상 오늘부터 HORIZON_MONTHS개월 뒤까지를 반환하므로
+    # "WINDOW_END가 과거"인 상황 자체가 구조적으로 발생할 수 없다(예전 하드코딩
+    # 연도 방식과 달리 사람이 매년 갱신할 필요가 없어짐). 대신 HORIZON_MONTHS가
+    # 실수로 0이나 음수로 바뀌는 회귀만 잡아준다.
+    span_days = (we - ws).days
+    if span_days < 300:
+        fail(f"WINDOW 길이가 비정상적으로 짧음({span_days}일) — HORIZON_MONTHS 설정 확인 필요")
         results["window"] = False
     else:
-        remaining = (we - today).days
-        (ok if remaining > 60 else warn)(f"WINDOW 정상, {remaining}일 남음")
+        ok(f"WINDOW 정상 (약 {span_days}일, HORIZON_MONTHS={gb.HORIZON_MONTHS})")
         results["window"] = True
 
     if DB_AVAILABLE:
@@ -158,12 +156,6 @@ else:
         else:
             fail(f"솔버 결과 불일치: {vals}"); results["solvers"] = False
 
-        import inspect, routers.policy_router as pr_mod
-        if "BruteForceSolver()" in inspect.getsource(pr_mod):
-            warn("policy_router.py 아직 BruteForceSolver 사용 중 → PreprocessSolver 교체 필요")
-        else:
-            ok("policy_router.py 솔버 교체 완료")
-
     except Exception as e:
         fail(f"솔버 검증 실패: {e}"); traceback.print_exc(); results["solvers"] = False
 
@@ -215,7 +207,8 @@ try:
     src = open("main.py", encoding="utf-8").read()
     for name in ["policy_router","user_router","result_router","roadmap_router"]:
         (ok if name in src else fail)(f"{name} {'등록됨' if name in src else '미등록 ← include_router 추가 필요'}")
-    results["main"] = "roadmap_router" in src
+    required = ["policy_router", "user_router", "result_router", "roadmap_router"]
+    results["main"] = all(name in src for name in required)
 except Exception as e:
     fail(f"main.py 읽기 실패: {e}"); results["main"] = False
 

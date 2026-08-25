@@ -6,6 +6,8 @@ from datetime import date, timedelta
 from typing import Optional
 from uuid import UUID
 
+from services.mwis.tier_resolver import resolve_tier
+
 
 @dataclass(frozen=True)
 class PolicyInterval:
@@ -37,25 +39,13 @@ class FullRoadmap:
     transitions: list[tuple[str, str]]
 
 
-def _resolve_tier(policy, income_level: Optional[float]):
-    if not policy.tiers:
-        return None
-    if income_level is not None:
-        return next(
-            (t for t in sorted(policy.tiers, key=lambda t: t.max_income_ratio or 999)
-             if t.max_income_ratio is None or t.max_income_ratio >= income_level),
-            policy.tiers[0],
-        )
-    return policy.tiers[0]
-
-
 def _benefit_window(
     policy,
     anchor: date,
     income_level: Optional[float],
 ) -> tuple[date, date, int, int, int] | None:
     """(benefit_start, benefit_end, total_benefit, duration_months, monthly_benefit)"""
-    tier = _resolve_tier(policy, income_level)
+    tier = resolve_tier(policy.tiers, income_level)
     if tier is None or not tier.monthly_benefit or not tier.duration_months:
         return None
 
