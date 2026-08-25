@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "../components/Sidebar";
 import SummaryCards from "../components/SummaryCards";
 import SubsidyList from "../components/SubsidyList";
@@ -8,6 +8,26 @@ import logoImg from "../logo.png";
 import "./DashboardPage.css";
 import { CATEGORIES } from "../data/subsidies";
 import ExclusionGraphPage from "./ExclusionGraphPage";
+import RequestFeedback from "../components/RequestFeedback";
+
+const EMPTY_SELECTIONS = {};
+
+async function readResponse(response) {
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      data?.detail || data?.message || `요청에 실패했습니다. (${response.status})`;
+    throw new Error(typeof message === "string" ? message : "입력값을 확인해주세요.");
+  }
+  return data;
+}
+
+function getRequestErrorMessage(error) {
+  if (error instanceof TypeError || error?.name === "AbortError") {
+    return "서버에 연결할 수 없습니다. 네트워크와 백엔드 실행 상태를 확인해주세요.";
+  }
+  return error?.message || "요청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.";
+}
 
 function DashboardPage({ userName, onLogout }) {
   const defaultCondition = {
@@ -32,6 +52,7 @@ function DashboardPage({ userName, onLogout }) {
   const activeSetIdRef = useRef(activeSetId);
   activeSetIdRef.current = activeSetId;
   const [nextId, setNextId] = useState(2);
+  const [roadmapRetryCount, setRoadmapRetryCount] = useState(0);
   const activeCondition =
     conditionSets.find((s) => s.id === activeSetId) || conditionSets[0];
 
@@ -67,23 +88,50 @@ function DashboardPage({ userName, onLogout }) {
   // 세트별 결과 저장
   const [resultsBySet, setResultsBySet] = useState({});
   const r = resultsBySet[activeSetId] || {};
-  const selectedSubsidies = r.selectedSubsidies || {};
+  const selectedSubsidies = r.selectedSubsidies || EMPTY_SELECTIONS;
   const filteredSubsidies = r.filteredSubsidies || [];
   const hasOptimized = r.hasOptimized || false;
   const extraBenefits = r.extraBenefits || [];
   const recommendedSelections = r.recommendedSelections || {};
-  const allMappedPolicies = r.allMappedPolicies || [];
   const roadmapData = r.roadmapData || null;
   const profilePayload = r.profilePayload || null;
+  const optimizeStatus = r.optimizeStatus || "idle";
+  const optimizeError = r.optimizeError || "";
+  const roadmapStatus = r.roadmapStatus || "idle";
+  const roadmapError = r.roadmapError || "";
 
-  const updateResult = (updates) => {
+  const updateResult = useCallback((updates) => {
     setResultsBySet((prev) => ({
       ...prev,
       [activeSetIdRef.current]: { ...(prev[activeSetIdRef.current] || {}), ...updates },
     }));
-  };
+  }, []);
 
   const handleOptimize = async () => {
+    const annualIncome = Number(activeCondition.annualIncome);
+    const parentIncome = Number(activeCondition.parentIncome);
+    if (
+      !Number.isFinite(activeCondition.age) ||
+      activeCondition.age < 19 ||
+      activeCondition.age > 39
+    ) {
+      updateResult({ optimizeStatus: "error", optimizeError: "나이는 만 19세부터 39세까지 입력해주세요." });
+      return;
+    }
+    if (!Number.isFinite(annualIncome) || annualIncome < 0 || annualIncome > 10000) {
+      updateResult({ optimizeStatus: "error", optimizeError: "연소득은 0만원부터 10,000만원까지 입력해주세요." });
+      return;
+    }
+    if (!Number.isFinite(parentIncome) || parentIncome < 0 || parentIncome > 30000) {
+      updateResult({ optimizeStatus: "error", optimizeError: "부모소득은 0만원부터 30,000만원까지 입력해주세요." });
+      return;
+    }
+    if (!activeCondition.district) {
+      updateResult({ optimizeStatus: "error", optimizeError: "거주 구를 선택해주세요." });
+      return;
+    }
+
+    updateResult({ optimizeStatus: "loading", optimizeError: "", roadmapStatus: "idle", roadmapError: "" });
     try {
       const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
 
@@ -111,7 +159,10 @@ function DashboardPage({ userName, onLogout }) {
         },
         body: JSON.stringify({ profile: payload, min_confidence: 0.5 }),
       });
-      const data = await res.json();
+      const data = await readResponse(res);
+      if (!Array.isArray(data?.selected_policies)) {
+        throw new Error("서버 응답 형식이 올바르지 않습니다.");
+      }
       console.log("백엔드 응답:", data);
 
       const categoryMap = {
@@ -220,10 +271,14 @@ function DashboardPage({ userName, onLogout }) {
         selectedSubsidies: newSelections,
         recommendedSelections: { ...newSelections },
         hasOptimized: true,
+        optimizeStatus:
+          converted.length + supplementaryConverted.length === 0 ? "empty" : "success",
+        optimizeError: "",
       });
 
       // /roadmap API 호출
       try {
+        updateResult({ roadmapStatus: "loading", roadmapError: "", roadmapData: null });
         const roadmapRes = await fetch(`${backendUrl}/policies/roadmap`, {
           method: "POST",
           headers: {
@@ -235,18 +290,30 @@ function DashboardPage({ userName, onLogout }) {
             selected_policy_ids: data.selected_policies.map((p) => p.id),
           }),
         });
-        if (roadmapRes.ok) {
-          updateResult({ roadmapData: await roadmapRes.json() });
-        }
+        const nextRoadmap = await readResponse(roadmapRes);
+        const hasRoadmap = Array.isArray(nextRoadmap?.phases) && nextRoadmap.phases.length > 0;
+        updateResult({
+          roadmapData: nextRoadmap,
+          roadmapStatus: hasRoadmap ? "success" : "empty",
+          roadmapError: "",
+        });
       } catch (e) {
         console.warn("roadmap API 실패:", e);
+        updateResult({ roadmapData: null, roadmapStatus: "error", roadmapError: e.message });
       }
 
       console.log("백엔드 추천 총액:", data.total_benefit);
     } catch (err) {
       console.error("API 에러:", err);
-      updateResult({ filteredSubsidies: [], selectedSubsidies: {}, hasOptimized: true });
-      alert("서버 연결에 실패했습니다. 백엔드가 실행 중인지 확인해주세요.");
+      updateResult({
+        filteredSubsidies: [],
+        selectedSubsidies: {},
+        extraBenefits: [],
+        allMappedPolicies: [],
+        hasOptimized: false,
+        optimizeStatus: "error",
+        optimizeError: getRequestErrorMessage(err),
+      });
     }
   };
 
@@ -269,6 +336,7 @@ function DashboardPage({ userName, onLogout }) {
     const selected = Object.keys(selectedSubsidies).filter((id) => selectedSubsidies[id]);
     if (!selected.length) return;
     const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
+    updateResult({ roadmapStatus: "loading", roadmapError: "", roadmapData: null });
     fetch(`${backendUrl}/policies/roadmap`, {
       method: "POST",
       headers: {
@@ -280,12 +348,16 @@ function DashboardPage({ userName, onLogout }) {
         selected_policy_ids: selected,
       }),
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(readResponse)
       .then((d) => {
-        if (d) updateResult({ roadmapData: d });
+        const hasRoadmap = Array.isArray(d?.phases) && d.phases.length > 0;
+        updateResult({ roadmapData: d, roadmapStatus: hasRoadmap ? "success" : "empty" });
       })
-      .catch((e) => console.warn("roadmap 재계산 실패:", e));
-  }, [currentPage]);
+      .catch((e) => {
+        console.warn("roadmap 재계산 실패:", e);
+        updateResult({ roadmapData: null, roadmapStatus: "error", roadmapError: e.message });
+      });
+  }, [currentPage, hasOptimized, profilePayload, selectedSubsidies, updateResult, roadmapRetryCount]);
 
   const dynamicDupGroups = [];
   const processed = new Set();
@@ -354,6 +426,14 @@ function DashboardPage({ userName, onLogout }) {
         </div>
       </header>
 
+      <RequestFeedback
+        status={optimizeStatus}
+        title={optimizeStatus === "loading" ? "지원 정책 분석 중" : "분석에 실패했습니다"}
+        message={optimizeStatus === "loading" ? "잠시만 기다려주세요." : optimizeError}
+        onRetry={handleOptimize}
+        onDismiss={() => updateResult({ optimizeStatus: "idle", optimizeError: "" })}
+      />
+
       {currentPage === "dashboard" && (
         <div className="dashboard-body">
           <Sidebar
@@ -366,6 +446,7 @@ function DashboardPage({ userName, onLogout }) {
             condition={activeCondition}
             onUpdateCondition={updateCondition}
             onOptimize={handleOptimize}
+            isOptimizing={optimizeStatus === "loading"}
           />
           <main className="dashboard-main">
             <div className="result-header">
@@ -400,7 +481,15 @@ function DashboardPage({ userName, onLogout }) {
               totalCount={grants.length}
               hasOptimized={hasOptimized}
             />
-            {hasOptimized ? (
+            {optimizeStatus === "empty" ? (
+              <RequestState icon="∅" title="조건에 맞는 결과가 없습니다" message="조건을 변경한 뒤 다시 탐색해보세요." />
+            ) : hasOptimized && filteredSubsidies.length === 0 ? (
+              <RequestState
+                icon="∅"
+                title="표시할 지원금 결과가 없습니다"
+                message={extraBenefits.length > 0 ? "알짜배기 정보에서 추가 혜택을 확인해보세요." : "조건을 변경한 뒤 다시 탐색해보세요."}
+              />
+            ) : hasOptimized ? (
               <SubsidyList
                 subsidies={filteredSubsidies}
                 selectedSubsidies={selectedSubsidies}
@@ -432,6 +521,10 @@ function DashboardPage({ userName, onLogout }) {
             selectedSubsidies={selectedSubsidies}
             hasOptimized={hasOptimized}
             roadmapData={roadmapData}
+            requestStatus={roadmapStatus}
+            errorMessage={roadmapError}
+            onRetry={() => setRoadmapRetryCount((count) => count + 1)}
+            onDismissError={() => updateResult({ roadmapStatus: "idle", roadmapError: "" })}
           />
         </div>
       )}
@@ -453,6 +546,17 @@ function DashboardPage({ userName, onLogout }) {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function RequestState({ icon, title, message, onRetry }) {
+  return (
+    <div className="empty-state" role={title.includes("실패") ? "alert" : "status"}>
+      <div className="empty-icon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{message}</p>
+      {onRetry && <button className="state-retry-button" onClick={onRetry}>다시 시도</button>}
     </div>
   );
 }

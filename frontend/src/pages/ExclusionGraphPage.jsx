@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import "./ExclusionGraphPage.css";
+import RequestFeedback from "../components/RequestFeedback";
 
 const CATEGORY_COLORS = {
   housing: "#43A047",
@@ -106,9 +107,16 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [allPolicies, setAllPolicies] = useState([]);
+  const [requestStatus, setRequestStatus] = useState("loading");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
+      setRequestStatus("loading");
+      setErrorMessage("");
+      setErrorDismissed(false);
       try {
         const backendUrl = process.env.REACT_APP_API_URL || `http://${window.location.hostname}:8000`;
         let all = [];
@@ -117,8 +125,13 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           const res = await fetch(
             `${backendUrl}/policies/?limit=100&skip=${skip}`,
           );
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => null);
+            throw new Error(errorData?.detail || `정책 요청에 실패했습니다. (${res.status})`);
+          }
           const data = await res.json();
-          if (!Array.isArray(data) || data.length === 0) break;
+          if (!Array.isArray(data)) throw new Error("서버 응답 형식이 올바르지 않습니다.");
+          if (data.length === 0) break;
           all = [...all, ...data];
           if (data.length < 100) break;
           skip += 100;
@@ -132,12 +145,16 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           });
         });
         setAllPolicies(all);
+        setRequestStatus(all.length > 0 ? "success" : "empty");
       } catch (err) {
         console.error("정책 로드 실패:", err);
+        setAllPolicies([]);
+        setRequestStatus("error");
+        setErrorMessage(err.message || "정책 데이터를 불러오지 못했습니다.");
       }
     };
     fetchAll();
-  }, []);
+  }, [retryCount]);
 
   const { nodes, totalW, totalH, byCategory } = useMemo(
     () => layoutNodes(allPolicies, selectedSubsidies || {}),
@@ -178,7 +195,22 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
     return s;
   }, [hoveredId, nodeMap]);
 
-  if (!hasOptimized || allPolicies.length === 0) {
+  if (hasOptimized && !errorDismissed && (requestStatus === "loading" || requestStatus === "error")) {
+    return (
+      <>
+        <RequestFeedback
+          status={requestStatus}
+          title={requestStatus === "loading" ? "정책 그래프 불러오는 중" : "정책 데이터를 불러오지 못했습니다"}
+          message={requestStatus === "loading" ? "정책 관계를 구성하고 있습니다." : errorMessage}
+          onRetry={() => setRetryCount((count) => count + 1)}
+          onDismiss={() => setErrorDismissed(true)}
+        />
+        <div className="graph-page" />
+      </>
+    );
+  }
+
+  if (!hasOptimized || requestStatus !== "success" || allPolicies.length === 0) {
     return (
       <div className="graph-page">
         <div className="graph-empty">
@@ -186,9 +218,19 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
           <h3>
             {!hasOptimized
               ? "먼저 최적 조합을 탐색해주세요"
-              : "정책 데이터 로딩 중..."}
+              : requestStatus === "loading"
+                ? "정책 데이터 로딩 중..."
+                : requestStatus === "error"
+                  ? "정책 데이터를 불러오지 못했습니다"
+                  : "표시할 정책 데이터가 없습니다"}
           </h3>
-          <p>대시보드에서 조건을 설정하고 "최적 조합 탐색"을 눌러주세요.</p>
+          <p>
+            {requestStatus === "error"
+              ? errorMessage
+              : !hasOptimized
+                ? "대시보드에서 조건을 설정하고 \"최적 조합 탐색\"을 눌러주세요."
+                : "잠시 후 다시 확인해주세요."}
+          </p>
         </div>
       </div>
     );
