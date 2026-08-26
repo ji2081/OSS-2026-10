@@ -10,6 +10,7 @@ import "./DashboardPage.css";
 import { CATEGORIES } from "../data/subsidies";
 import ExclusionGraphPage from "./ExclusionGraphPage";
 import RequestFeedback from "../components/RequestFeedback";
+import { getApiBaseUrl } from "../lib/apiConfig";
 
 const EMPTY_SELECTIONS = {};
 
@@ -138,7 +139,7 @@ function DashboardPage({ userName, onLogout }) {
 
     updateResult({ optimizeStatus: "loading", optimizeError: "", roadmapStatus: "idle", roadmapError: "" });
     try {
-      const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
+      const backendUrl = getApiBaseUrl();
 
       const income_level =
         activeCondition.annualIncome === 0
@@ -380,9 +381,7 @@ function DashboardPage({ userName, onLogout }) {
   };
 
   const handleAnswerTag = async (tag, value) => {
-    const backendUrl =
-      process.env.REACT_APP_API_URL ||
-      "https://oss-2026-10-production.up.railway.app";
+    const backendUrl = getApiBaseUrl();
     try {
       await fetch(`${backendUrl}/profiles/me/condition-tags`, {
         method: "PATCH",
@@ -430,7 +429,7 @@ function DashboardPage({ userName, onLogout }) {
       (id) => selectedSubsidies[id],
     );
     if (!selected.length) return;
-    const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
+    const backendUrl = getApiBaseUrl();
     updateResult({ roadmapStatus: "loading", roadmapError: "", roadmapData: null });
     fetch(`${backendUrl}/policies/roadmap`, {
       method: "POST",

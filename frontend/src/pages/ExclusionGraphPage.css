@@ -117,7 +117,14 @@
   border-radius: 2px;
   min-height: 550px;
   overflow: hidden;
+  touch-action: none;
+  cursor: grab;
 }
+
+.graph-container:active {
+  cursor: grabbing;
+}
+
 .graph-svg {
   display: block;
 }
