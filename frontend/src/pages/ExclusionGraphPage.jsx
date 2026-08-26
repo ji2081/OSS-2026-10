@@ -11,6 +11,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import "./ExclusionGraphPage.css";
 import RequestFeedback from "../components/RequestFeedback";
+import { getApiBaseUrl } from "../lib/apiConfig";
 
 const CATEGORY_COLORS = {
   housing: "#43A047",
@@ -278,7 +279,7 @@ function ExclusionGraphPage({ selectedSubsidies, hasOptimized }) {
       setErrorMessage("");
       setErrorDismissed(false);
       try {
-        const backendUrl = process.env.REACT_APP_API_URL || "https://oss-2026-10-production.up.railway.app";
+        const backendUrl = getApiBaseUrl();
         let all = [];
         let skip = 0;
         while (true) {

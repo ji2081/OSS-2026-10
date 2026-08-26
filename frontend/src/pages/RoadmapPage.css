@@ -169,7 +169,8 @@
   display: flex;
   background: #fff;
   border: 1px solid #e0e0e0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 /* ── 왼쪽 열 ────────────────────────────────────────────────────────────── */
@@ -178,6 +179,11 @@
   min-width: 240px;
   border-right: 1px solid #e0e0e0;
   background: #fff;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  border-right: none;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 .gantt-th-left {
   height: 36px;
