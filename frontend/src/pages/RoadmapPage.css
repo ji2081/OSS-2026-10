@@ -556,10 +556,16 @@
 
   .gantt-wrap {
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .gantt-left {
-    width: 140px;
-    min-width: 140px;
+    width: 160px;
+    min-width: 160px;
+  }
+  .gantt-right {
+    flex: 0 0 720px;
+    min-width: 720px;
   }
   .gantt-item-name {
     font-size: 11px;
