@@ -1,0 +1,27 @@
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # 6시간마다 (UTC)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          set -euo pipefail
+          URL="https://oss-2026-10-production.up.railway.app/health"
+          for i in 1 2 3; do
+            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 30 "$URL" || echo "000")
+            echo "attempt $i -> HTTP $code"
+            cat /tmp/health.json || true
+            echo
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "health check failed after 3 attempts"
+          exit 1
