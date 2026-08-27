@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import datetime
 from collections import defaultdict
 from typing import Iterable, Protocol, runtime_checkable, Optional
@@ -9,21 +10,15 @@ from services.mwis.tier_resolver import TierLike, resolve_tier
 
 __all__ = ["PolicyLike", "build_graph", "current_window"]
 
-# 가중치/수혜기간을 계산하는 창(window)의 길이. 예전엔 WINDOW_START/END를
-# 특정 연도(예: 2026-01-01~12-31)로 하드코딩해서 매년 초 사람이 직접 갱신해야
-# 했고, 깜빡하면 연말 이후 모든 weight가 0이 되는 위험이 있었다(backend_check.py
-# 3/7에서 수동 점검하던 항목). 지금은 "오늘부터 N개월"로 매번 새로 계산해서
-# 이 유지보수 부담 자체를 없앴다 — 과거 정책 데이터를 더 모으는 것과는 별개
-# 문제로, is_active=False인 정책은 policy_filter.py에서 이미 걸러지므로 이
-# window에 도달하지도 않는다.
+# 가중치/수혜기간을 계산하는 창(window)의 길이.
+# 오늘부터 N개월로 매번 새로 계산해서 유지보수 부담을 없앰.
+# 과거 정책 데이터를 더 모으는 것과는 별개 문제로, is_active=False인 정책은 policy_filter.py에서 이미 걸러짐.
 HORIZON_MONTHS = 12
 
 
 def current_window(today: datetime.date | None = None) -> "BenefitPeriod":
     """오늘(today)부터 HORIZON_MONTHS개월 뒤까지의 (window_start, window_end)를 반환한다.
-
-    매 호출마다 새로 계산하므로(모듈 로드 시점에 고정되지 않음) 서버가
-    몇 달째 재시작 없이 떠 있어도 window가 그대로 오늘 기준으로 굴러간다.
+    매 호출마다 새로 계산하므로 서버가 계속 재시작 없이 떠 있어도 window가 그대로 오늘 기준으로 굴러간다.
     """
     start = today or datetime.date.today()
     end = _add_months(start, HORIZON_MONTHS) - datetime.timedelta(days=1)
@@ -58,10 +53,17 @@ def _coerce_uuid(value: object) -> UUID | None:
 
 
 def _add_months(d: datetime.date, months: int) -> datetime.date:
-    month = d.month - 1 + months
-    year = d.year + month // 12
-    month = month % 12 + 1
-    return datetime.date(year, month, 1)
+    """일(day)을 보존하며 개월을 더한다.
+
+    이전 구현은 반환값의 day를 항상 1로 고정해서, 월 중순에 시작하는 정책의
+    수혜 기간이 최대 30일까지 짧아졌다(3/15 시작 12개월 -> 2027-02-28 종료).
+    대상 월에 해당 일자가 없으면(1/31 + 1개월) 그 달의 마지막 날로 절삭한다.
+    """
+    month_index = d.month - 1 + months
+    year = d.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return datetime.date(year, month, day)
 
 
 def _benefit_period(policy: PolicyLike, tier: TierLike, window_start: datetime.date) -> BenefitPeriod | None:
@@ -82,11 +84,23 @@ def _benefit_period(policy: PolicyLike, tier: TierLike, window_start: datetime.d
 
 
 def _overlap_months(period: BenefitPeriod, window_start: datetime.date, window_end: datetime.date) -> int:
+    """수혜 기간과 window가 겹치는 개월 수.
+
+    이전 구현은 종료일을 포함 구간으로 두고 (end.month - start.month)만 계산해
+    모든 정책이 1개월씩 과소 산정됐다(12개월 정책 -> 11개월). 특히 1개월짜리
+    정책은 0이 되어 가중치가 사라지고 MWIS 후보에서 사실상 제외됐다.
+    종료일 다음 날을 반개구간 끝으로 삼아 온전히 채운 개월 수를 센다.
+    """
     start = max(period[0], window_start)
     end = min(period[1], window_end)
-    if start >= end:
+    if start > end:
         return 0
-    return (end.year - start.year) * 12 + (end.month - start.month)
+
+    end_exclusive = end + datetime.timedelta(days=1)
+    months = (end_exclusive.year - start.year) * 12 + (end_exclusive.month - start.month)
+    if end_exclusive.day < start.day:
+        months -= 1
+    return max(months, 0)
 
 
 def _periods_overlap(a: BenefitPeriod, b: BenefitPeriod) -> bool:
