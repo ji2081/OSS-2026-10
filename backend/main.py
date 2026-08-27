@@ -1,5 +1,13 @@
+from pathlib import Path
+
 from dotenv import load_dotenv
-load_dotenv(dotenv_path="../.env")
+
+# backend/ 디렉터리. 아래 경로들을 이 기준으로 잡아 실행 위치에 의존하지 않게 함.
+# 이전에는 load_dotenv("../.env") 와 FileResponse("verify.html") 이 모두 현재
+# 작업 디렉터리 기준이어서, 루트에서 `uvicorn backend.main:app` 으로 띄우거나
+# Docker의 WORKDIR이 다르면 .env를 못 찾고 /dashboard 가 404 발생.
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 
 import os
 from fastapi import FastAPI
@@ -24,10 +32,10 @@ _origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localh
 ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
 
 # localhost만 허용하면 휴대폰으로 같은 네트워크의 Mac IP(예: 192.168.x.x:3000)에
-# 접속해 테스트할 때 Origin이 안 맞아 CORS preflight(OPTIONS)가 막힌다. 사설 IP
+# 접속해 테스트할 때 Origin이 안 맞아 CORS preflight(OPTIONS)가 막힘. 사설 IP
 # 대역 + 개발 포트(3000/5173)만 정규식으로 허용해서, IP가 바뀔 때마다 매번
-# ALLOWED_ORIGINS를 손으로 안 고쳐도 되게 한다. 외부 인터넷에서는 애초에
-# 사설 IP를 Origin으로 주장할 수 없으므로 프로덕션에서도 안전하다.
+# ALLOWED_ORIGINS를 손으로 안 고쳐도 되게 함. 외부 인터넷에서는 애초에
+# 사설 IP를 Origin으로 주장할 수 없으므로 프로덕션에서도 안전함.
 LOCAL_NETWORK_ORIGIN_REGEX = (
     r"^http://(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
     r"172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}):(3000|5173)$"
@@ -57,7 +65,7 @@ def read_root():
 
 @app.get("/dashboard")
 def verification_dashboard():
-    return FileResponse("verify.html")
+    return FileResponse(BASE_DIR / "verify.html")
 
 app.include_router(policy_router)
 app.include_router(user_router)
