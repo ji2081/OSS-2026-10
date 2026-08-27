@@ -4,7 +4,7 @@ from uuid import UUID
 import time
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from schemas.policy_schema import PolicyResponse, PolicyCategory, PolicyTierResponse
 from schemas.profile_schema import OptimizeRequest, OptimizeResponse, TimelineItem
@@ -15,13 +15,20 @@ from models.user_profile import UserProfile
 from models.optimization_result import OptimizationResult
 from models.result_policy import ResultPolicy
 
-from services.mwis.graph_builder import build_graph
+# _add_months 를 graph_builder 에서 그대로 가져다 쓴다. 예전에는 이 파일이
+# 개월 덧셈을 자체 구현하면서 결과 날짜의 day를 1로 고정해, 그래프 계층과
+# 응답 계층의 수혜 종료일이 최대 한 달까지 어긋났다. 계산 기준을 한 곳으로
+# 모아 두 계층이 항상 같은 날짜를 내도록 한다.
+from services.mwis.graph_builder import build_graph, _add_months as add_months
 from services.mwis.solvers.stage_b_dp import DPDFSSolver
 from services.mwis.tier_resolver import resolve_tier
 from services.policy_filter import filter_policies, pending_tag_questions
 from dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/policies", tags=["Policies"])
+
+# 수혜 기간 정보가 없는 정책의 기본 표시 기간(개월)
+DEFAULT_DURATION_MONTHS = 12
 
 # ---------------------------------------------------------------------------
 # 헬퍼
@@ -33,19 +40,20 @@ def _build_policy_response(p: Policy, income_level: Optional[float]) -> PolicyRe
     resp.resolved_tier = PolicyTierResponse.model_validate(tier) if tier else None
     return resp
 
-
 def _calc_start_date(policy: Policy) -> date:
     lag = policy.benefit_start_lag_days or 0
     return date.today() + timedelta(days=lag)
 
-
 def _calc_end_date(start: date, income_level: Optional[float], policy: Policy) -> date:
-    tier = resolve_tier(policy.tiers, income_level)
-    if tier and tier.duration_months:
-        total_months = start.month - 1 + tier.duration_months
-        return date(start.year + total_months // 12, total_months % 12 + 1, 1)
-    return date(start.year + 1, start.month, 1)
+    """수혜 종료일(해당 일자를 포함)을 반환.
 
+    graph_builder._add_months 와 동일한 방식으로 개월을 더하므로, 월 중순에
+    시작하는 정책도 실제 기간만큼 계산됨. 예를 들어 8/27에 시작하는 12개월
+    정책의 종료일은 이듬해 8/26 가 된다.
+    """
+    tier = resolve_tier(policy.tiers, income_level)
+    months = tier.duration_months if (tier and tier.duration_months) else DEFAULT_DURATION_MONTHS
+    return add_months(start, months) - timedelta(days=1)
 
 # ---------------------------------------------------------------------------
 # 엔드포인트
@@ -59,7 +67,6 @@ def get_policies(
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    from sqlalchemy.orm import joinedload
     query = db.query(Policy).options(joinedload(Policy.tiers))
     if category:
         query = query.filter(Policy.category == category.value)
@@ -67,10 +74,8 @@ def get_policies(
         query = query.filter(Policy.super_region == super_region)
     return query.offset(skip).limit(limit).all()
 
-
 @router.get("/{policy_id}", response_model=PolicyResponse)
 def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
-    from sqlalchemy.orm import joinedload
     policy = (
         db.query(Policy)
         .options(joinedload(Policy.tiers))
@@ -80,7 +85,6 @@ def get_policy_detail(policy_id: UUID, db: Session = Depends(get_db)):
     if not policy:
         raise HTTPException(status_code=404, detail=f"정책 ID {policy_id}를 찾을 수 없습니다.")
     return policy
-
 
 @router.post("/optimize", response_model=OptimizeResponse)
 def optimize_policies(
@@ -109,7 +113,6 @@ def optimize_policies(
 
     print(f"[필터링] 전체 {len(mwis_candidates) + len(supplementary)}개 "
           f"(MWIS 후보: {len(mwis_candidates)}, 보조: {len(supplementary)})")
-
 
     if not mwis_candidates:
         return OptimizeResponse(
@@ -171,12 +174,13 @@ def optimize_policies(
         raise
 
     return OptimizeResponse(
-    total_benefit=result.total_benefit,
-    selected_policies=[_build_policy_response(p, income_level) for p in optimized],
-    supplementary_policies=[_build_policy_response(p, income_level)
-                             for p in supplementary + unselected],
-    timeline=timeline,
-    # 결과 화면에 실제로 뜨는 정책 기준으로만 물어봄(unselected/전체 후보 X) —
-    # 사용자가 지금 보고 있는 조합과 무관한 질문은 하지 않는다.
-    pending_questions=pending_tag_questions(optimized + supplementary, confirmed_tags),
-)
+        total_benefit=result.total_benefit,
+        selected_policies=[_build_policy_response(p, income_level) for p in optimized],
+        supplementary_policies=[
+            _build_policy_response(p, income_level) for p in supplementary + unselected
+        ],
+        timeline=timeline,
+        # 결과 화면에 실제로 뜨는 정책 기준으로만 물어봄(unselected/전체 후보 X) —
+        # 사용자가 지금 보고 있는 조합과 무관한 질문은 하지 않음.
+        pending_questions=pending_tag_questions(optimized + supplementary, confirmed_tags),
+    )
