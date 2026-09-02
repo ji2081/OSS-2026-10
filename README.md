@@ -62,7 +62,7 @@
 
 ## 데모
 
-> 아래 이미지 경로에 스크린샷을 넣어주세요. (`docs/images/` 폴더 생성 후 저장)
+> (`docs/images/` 폴더 생성 후 저장 필요)
 
 | 대시보드 | 배타 관계 그래프 |
 |---|---|
@@ -72,7 +72,7 @@
 |---|---|
 | ![로드맵](docs/images/roadmap.png) | ![검증](docs/images/verify.png) |
 
-**시연 영상**: <!-- 유튜브 링크를 넣어주세요 -->
+**시연 영상**: https://youtu.be/-J6wdifzVUw?si=92C-nTmcIQVY8DIc
 
 ---
 
